@@ -1,0 +1,7 @@
+{
+  "name": "Task Assassin",
+  "description": "A spy-themed task validation agent that uses visual evidence to confirm mission completion.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
