@@ -1,27 +1,53 @@
-import React, { useState, useEffect } from 'react';
-import { Fingerprint, Scan, ShieldCheck } from 'lucide-react';
+import React, { useState } from 'react';
+import { Fingerprint, Scan, ShieldCheck, UserPlus } from 'lucide-react';
+import { loginUser, registerUser } from '../services/authService';
 
 interface LoginScreenProps {
   onLogin: (codename: string) => void;
 }
 
+type AuthMode = 'LOGIN' | 'REGISTER';
+
 const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
+  const [mode, setMode] = useState<AuthMode>('LOGIN');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [codename, setCodename] = useState('');
   const [isScanning, setIsScanning] = useState(false);
   const [accessGranted, setAccessGranted] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!codename.trim()) return;
-    
+    setError(null);
+
+    if (mode === 'LOGIN') {
+      if (!email.trim() || !password.trim()) {
+        setError('All fields required');
+        return;
+      }
+    } else {
+      if (!email.trim() || !password.trim() || !codename.trim()) {
+        setError('All fields required');
+        return;
+      }
+    }
+
     setIsScanning(true);
-    setTimeout(() => {
-      setIsScanning(false);
+
+    try {
+      if (mode === 'LOGIN') {
+        await loginUser(email, password);
+      } else {
+        await registerUser(email, password, codename);
+      }
+
       setAccessGranted(true);
-      setTimeout(() => {
-        onLogin(codename);
-      }, 1500);
-    }, 2000);
+      // The auth state listener in App.tsx will handle navigation
+    } catch (err: any) {
+      setIsScanning(false);
+      setError(err.message || 'Authentication failed');
+    }
   };
 
   return (
@@ -50,30 +76,95 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
         </div>
 
         {!accessGranted ? (
-          <form onSubmit={handleSubmit} className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-700">
+          <form onSubmit={handleSubmit} className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-700">
+            {/* Mode Toggle */}
+            <div className="flex gap-2 mb-4">
+              <button
+                type="button"
+                onClick={() => setMode('LOGIN')}
+                className={`flex-1 py-2 font-mono text-xs rounded ${
+                  mode === 'LOGIN'
+                    ? 'bg-green-600 text-black'
+                    : 'bg-slate-800 text-slate-400 hover:bg-slate-700'
+                }`}
+              >
+                LOGIN
+              </button>
+              <button
+                type="button"
+                onClick={() => setMode('REGISTER')}
+                className={`flex-1 py-2 font-mono text-xs rounded ${
+                  mode === 'REGISTER'
+                    ? 'bg-green-600 text-black'
+                    : 'bg-slate-800 text-slate-400 hover:bg-slate-700'
+                }`}
+              >
+                NEW AGENT
+              </button>
+            </div>
+
+            {/* Email Field */}
             <div className="relative group">
               <div className="absolute -inset-0.5 bg-gradient-to-r from-green-600 to-teal-600 rounded-lg blur opacity-25 group-focus-within:opacity-75 transition duration-1000 group-hover:opacity-100"></div>
               <input
-                type="text"
-                value={codename}
-                onChange={(e) => setCodename(e.target.value.toUpperCase())}
-                placeholder="ENTER AGENT CODENAME"
-                className="relative w-full bg-slate-900 text-green-500 font-mono placeholder-slate-600 border border-slate-700 rounded-lg p-4 text-center focus:outline-none focus:border-green-500 uppercase tracking-wider"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="EMAIL ADDRESS"
+                className="relative w-full bg-slate-900 text-green-500 font-mono placeholder-slate-600 border border-slate-700 rounded-lg p-3 text-sm focus:outline-none focus:border-green-500"
                 autoFocus
               />
             </div>
+
+            {/* Password Field */}
+            <div className="relative group">
+              <div className="absolute -inset-0.5 bg-gradient-to-r from-green-600 to-teal-600 rounded-lg blur opacity-25 group-focus-within:opacity-75 transition duration-1000 group-hover:opacity-100"></div>
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="PASSWORD"
+                className="relative w-full bg-slate-900 text-green-500 font-mono placeholder-slate-600 border border-slate-700 rounded-lg p-3 text-sm focus:outline-none focus:border-green-500"
+              />
+            </div>
+
+            {/* Codename Field (Registration Only) */}
+            {mode === 'REGISTER' && (
+              <div className="relative group">
+                <div className="absolute -inset-0.5 bg-gradient-to-r from-green-600 to-teal-600 rounded-lg blur opacity-25 group-focus-within:opacity-75 transition duration-1000 group-hover:opacity-100"></div>
+                <input
+                  type="text"
+                  value={codename}
+                  onChange={(e) => setCodename(e.target.value.toUpperCase())}
+                  placeholder="AGENT CODENAME"
+                  className="relative w-full bg-slate-900 text-green-500 font-mono placeholder-slate-600 border border-slate-700 rounded-lg p-3 text-sm focus:outline-none focus:border-green-500 uppercase tracking-wider"
+                />
+              </div>
+            )}
+
+            {/* Error Message */}
+            {error && (
+              <div className="bg-red-900/20 border border-red-500 text-red-400 p-3 rounded-lg text-center font-mono text-xs">
+                ERROR: {error}
+              </div>
+            )}
+
             <button
               type="submit"
-              disabled={!codename || isScanning}
+              disabled={isScanning}
               className="w-full bg-green-600 hover:bg-green-500 text-black font-bold font-mono py-3 rounded-lg transition-all transform hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed shadow-[0_0_15px_rgba(22,163,74,0.5)]"
             >
-              {isScanning ? 'VERIFYING BIOMETRICS...' : 'INITIATE SESSION'}
+              {isScanning
+                ? 'VERIFYING BIOMETRICS...'
+                : mode === 'LOGIN'
+                ? 'INITIATE SESSION'
+                : 'REGISTER AGENT'}
             </button>
           </form>
         ) : (
           <div className="bg-green-500/10 border border-green-500 text-green-400 p-4 rounded-lg text-center font-mono animate-in zoom-in duration-300">
             <p className="text-lg font-bold">ACCESS GRANTED</p>
-            <p className="text-sm mt-2">WELCOME BACK, AGENT {codename}</p>
+            <p className="text-sm mt-2">WELCOME, AGENT</p>
             <p className="text-xs mt-4 animate-pulse">LOADING MISSION DATA...</p>
           </div>
         )}

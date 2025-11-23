@@ -39,7 +39,7 @@ export const verifyIntel = async (
   const cleanEnd = endImageBase64.split(',')[1] || endImageBase64;
 
   const response = await ai.models.generateContent({
-    model: 'gemini-2.5-flash',
+    model: 'gemini-2.0-flash',
     contents: {
       parts: [
         { text: `ROLE: You are the user's Task Handler. 

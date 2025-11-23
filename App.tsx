@@ -7,6 +7,19 @@ import ProfileSettings from './components/ProfileSettings';
 import TacticalChat from './components/TacticalChat';
 import SocialHub from './components/SocialHub';
 import { verifyIntel } from './services/geminiService';
+import { subscribeToAuthState, getUserProfile, updateUserProfile } from './services/authService';
+import {
+  subscribeFriends,
+  subscribeFriendRequests,
+  subscribeMessages,
+  sendFriendRequest,
+  acceptFriendRequest,
+  declineFriendRequest,
+  removeFriend,
+  sendMessage,
+  issueTask,
+  getAllUsers
+} from './services/socialService';
 import { Mission, MissionResult, HandlerPersona, UserProfile, SocialUser, FriendRequest, SocialMessage } from './types';
 
 // --- DATA CONSTANTS ---
@@ -30,13 +43,6 @@ const HANDLERS: HandlerPersona[] = [
   { id: '16', name: 'THE OTAKU', description: 'Anime refs, dramatic, Japanese loanwords.', systemPrompt: 'You are a high-energy Anime fan. Use Japanese loanwords (Sugoi, Baka, Ganbatte, Senpai). Treat the mess like a powerful villain that must be defeated with the power of friendship and hard work.' },
 ];
 
-const MOCK_USERS: SocialUser[] = [
-    { id: 'user_1', codename: 'AGENT VIPER', status: 'ONLINE', handlerId: '3' },
-    { id: 'user_2', codename: 'BLACK WIDOW', status: 'BUSY', handlerId: '6' },
-    { id: 'user_3', codename: 'GHOST', status: 'OFFLINE', handlerId: '7' },
-    { id: 'user_4', codename: 'NEO', status: 'ONLINE', handlerId: '4' },
-];
-
 type ViewState = 'LOGIN' | 'DASHBOARD' | 'CREATE_MISSION' | 'EXECUTE_MISSION' | 'DEBRIEF' | 'PROFILE' | 'CHAT' | 'SOCIAL';
 
 const INITIAL_MISSIONS: Mission[] = [
@@ -53,20 +59,21 @@ const INITIAL_MISSIONS: Mission[] = [
 
 const App: React.FC = () => {
   const [view, setView] = useState<ViewState>('LOGIN');
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [userProfile, setUserProfile] = useState<UserProfile>({ codename: '', handlerId: '1', lifeGoal: '' });
-  
+  const [isLoadingAuth, setIsLoadingAuth] = useState(true);
+
   const [missions, setMissions] = useState<Mission[]>(INITIAL_MISSIONS);
   const [activeMissionId, setActiveMissionId] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [lastResult, setLastResult] = useState<MissionResult | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  // Social State
+  // Social State (now from Firebase)
   const [friends, setFriends] = useState<SocialUser[]>([]);
-  const [friendRequests, setFriendRequests] = useState<FriendRequest[]>([
-      { id: 'req_1', fromUser: MOCK_USERS[0], timestamp: new Date().toISOString() } // Initial simulated request
-  ]);
+  const [friendRequests, setFriendRequests] = useState<FriendRequest[]>([]);
   const [socialMessages, setSocialMessages] = useState<SocialMessage[]>([]);
+  const [allUsers, setAllUsers] = useState<SocialUser[]>([]);
 
   // Creation State
   const [newMissionData, setNewMissionData] = useState<{
@@ -82,14 +89,82 @@ const App: React.FC = () => {
   const totalStars = missions.reduce((acc, m) => acc + m.stars, 0);
   const activeHandler = HANDLERS.find(h => h.id === userProfile.handlerId) || HANDLERS[0];
 
+  // Firebase Authentication Listener
+  useEffect(() => {
+    const unsubscribe = subscribeToAuthState(async (user) => {
+      if (user) {
+        setCurrentUserId(user.uid);
+
+        // Load user profile from database
+        const profile = await getUserProfile(user.uid);
+        if (profile) {
+          setUserProfile(profile);
+          setView('DASHBOARD');
+        } else {
+          // New user, needs to set up profile
+          setUserProfile({ codename: user.displayName || '', handlerId: '1', lifeGoal: '' });
+          setView('PROFILE');
+        }
+      } else {
+        setCurrentUserId(null);
+        setUserProfile({ codename: '', handlerId: '1', lifeGoal: '' });
+        setView('LOGIN');
+      }
+      setIsLoadingAuth(false);
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  // Subscribe to Friends
+  useEffect(() => {
+    if (!currentUserId) return;
+
+    const unsubscribe = subscribeFriends(currentUserId, (friendsList) => {
+      setFriends(friendsList);
+    });
+
+    return () => unsubscribe();
+  }, [currentUserId]);
+
+  // Subscribe to Friend Requests
+  useEffect(() => {
+    if (!currentUserId) return;
+
+    const unsubscribe = subscribeFriendRequests(currentUserId, (requests) => {
+      setFriendRequests(requests);
+    });
+
+    return () => unsubscribe();
+  }, [currentUserId]);
+
+  // Load all users for search/recommendations
+  useEffect(() => {
+    if (!currentUserId) return;
+
+    const loadUsers = async () => {
+      const users = await getAllUsers(currentUserId, 20);
+      setAllUsers(users);
+    };
+
+    loadUsers();
+  }, [currentUserId, friends]); // Reload when friends change
+
   const handleLogin = (code: string) => {
+    // This is now handled by the auth service in LoginScreen
+    // This function can be deprecated or used for codename-only login
     setUserProfile(prev => ({ ...prev, codename: code }));
     setView('PROFILE');
   };
 
-  const handleLogout = () => {
-    setUserProfile({ codename: '', handlerId: '1', lifeGoal: '' });
-    setView('LOGIN');
+  const handleLogout = async () => {
+    try {
+      const { logoutUser } = await import('./services/authService');
+      await logoutUser();
+      // The auth listener will handle state reset
+    } catch (error: any) {
+      alert(`Failed to logout: ${error.message}`);
+    }
   };
 
   const handleCreateMission = (title?: string, desc?: string) => {
@@ -179,66 +254,83 @@ const App: React.FC = () => {
 
   // --- SOCIAL ACTIONS ---
 
-  const handleSendFriendRequest = (userId: string) => {
-      // Simulating sending request
-      // In a real app, this would push to DB
-      alert(`Encrypted frequency request sent to Agent.`);
-  };
+  const handleSendFriendRequest = async (userId: string) => {
+      if (!currentUserId) return;
 
-  const handleAcceptRequest = (reqId: string) => {
-      const req = friendRequests.find(r => r.id === reqId);
-      if (req) {
-          setFriends([...friends, req.fromUser]);
-          setFriendRequests(friendRequests.filter(r => r.id !== reqId));
+      try {
+          await sendFriendRequest(currentUserId, userId);
+          alert(`Encrypted frequency request sent to Agent.`);
+      } catch (error: any) {
+          alert(`Failed to send request: ${error.message}`);
       }
   };
 
-  const handleDeclineRequest = (reqId: string) => {
-      setFriendRequests(friendRequests.filter(r => r.id !== reqId));
+  const handleAcceptRequest = async (reqId: string) => {
+      if (!currentUserId) return;
+
+      const req = friendRequests.find(r => r.id === reqId);
+      if (req) {
+          try {
+              await acceptFriendRequest(currentUserId, reqId, req.fromUser.id);
+          } catch (error: any) {
+              alert(`Failed to accept request: ${error.message}`);
+          }
+      }
   };
 
-  const handleUnfriend = (userId: string) => {
-      setFriends(friends.filter(f => f.id !== userId));
+  const handleDeclineRequest = async (reqId: string) => {
+      if (!currentUserId) return;
+
+      try {
+          await declineFriendRequest(currentUserId, reqId);
+      } catch (error: any) {
+          alert(`Failed to decline request: ${error.message}`);
+      }
   };
 
-  const handleSendSocialMessage = (toUserId: string, text: string) => {
-      const newMsg: SocialMessage = {
-          id: Date.now().toString(),
-          fromId: userProfile.codename,
-          toId: toUserId,
-          text,
-          timestamp: new Date().toISOString()
-      };
-      setSocialMessages([...socialMessages, newMsg]);
-      
-      // Simulate Reply
-      setTimeout(() => {
-           const reply: SocialMessage = {
-              id: (Date.now() + 1).toString(),
-              fromId: toUserId,
-              toId: userProfile.codename,
-              text: "Copy that. Standing by.",
-              timestamp: new Date().toISOString()
-          };
-          setSocialMessages(prev => [...prev, reply]);
-      }, 2000);
+  const handleUnfriend = async (userId: string) => {
+      if (!currentUserId) return;
+
+      try {
+          await removeFriend(currentUserId, userId);
+      } catch (error: any) {
+          alert(`Failed to remove friend: ${error.message}`);
+      }
   };
 
-  const handleIssueSocialTask = (toUserId: string, title: string, briefing: string) => {
-      // In a real app, this sends to the other user.
-      // Since we are single player, we can simulate an 'incoming' task from them to us later for testing
-      // But logically we just sent it.
-      const newMsg: SocialMessage = {
-          id: Date.now().toString(),
-          fromId: userProfile.codename,
-          toId: toUserId,
-          text: `>> CONTRACT ISSUED: ${title}`,
-          timestamp: new Date().toISOString()
-      };
-      setSocialMessages([...socialMessages, newMsg]);
+  const handleSendSocialMessage = async (toUserId: string, text: string) => {
+      if (!currentUserId) return;
+
+      try {
+          await sendMessage(currentUserId, toUserId, text);
+      } catch (error: any) {
+          alert(`Failed to send message: ${error.message}`);
+      }
+  };
+
+  const handleIssueSocialTask = async (toUserId: string, title: string, briefing: string) => {
+      if (!currentUserId) return;
+
+      try {
+          await issueTask(currentUserId, toUserId, title, briefing);
+      } catch (error: any) {
+          alert(`Failed to issue task: ${error.message}`);
+      }
   };
 
   // --- VIEW RENDERERS ---
+
+  // Show loading state while checking authentication
+  if (isLoadingAuth) {
+    return (
+      <div className="min-h-screen bg-[#0f172a] flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-12 h-12 border-4 border-green-500 border-t-transparent rounded-full animate-spin mb-4 mx-auto"></div>
+          <div className="font-mono text-green-500 animate-pulse">INITIALIZING SECURE CONNECTION...</div>
+        </div>
+      </div>
+    );
+  }
 
   if (view === 'LOGIN') {
     return <LoginScreen onLogin={handleLogin} />;
@@ -525,10 +617,19 @@ const App: React.FC = () => {
         )}
 
         {view === 'PROFILE' && (
-          <ProfileSettings 
+          <ProfileSettings
              userProfile={userProfile}
              handlers={HANDLERS}
-             onUpdateProfile={(p) => setUserProfile(p)}
+             onUpdateProfile={async (p) => {
+               setUserProfile(p);
+               if (currentUserId) {
+                 try {
+                   await updateUserProfile(currentUserId, p);
+                 } catch (error: any) {
+                   console.error('Failed to update profile:', error);
+                 }
+               }
+             }}
              onComplete={() => setView('DASHBOARD')}
              onLogout={handleLogout}
           />
@@ -542,12 +643,13 @@ const App: React.FC = () => {
           />
         )}
 
-        {view === 'SOCIAL' && (
-            <SocialHub 
+        {view === 'SOCIAL' && currentUserId && (
+            <SocialHub
                 userProfile={userProfile}
+                currentUserId={currentUserId}
                 friends={friends}
                 requests={friendRequests}
-                mockUsers={MOCK_USERS}
+                mockUsers={allUsers}
                 messages={socialMessages}
                 onSendRequest={handleSendFriendRequest}
                 onAcceptRequest={handleAcceptRequest}

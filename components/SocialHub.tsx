@@ -1,13 +1,15 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { SocialUser, FriendRequest, SocialMessage, UserProfile } from '../types';
 import { Users, Search, UserPlus, MessageSquare, Shield, Check, X, Send, ArrowLeft, User } from 'lucide-react';
+import { subscribeMessages } from '../services/socialService';
 
 interface SocialHubProps {
   userProfile: UserProfile;
+  currentUserId: string;
   friends: SocialUser[];
   requests: FriendRequest[];
   mockUsers: SocialUser[]; // Potential friends to search
-  messages: SocialMessage[];
+  messages: SocialMessage[]; // Deprecated, kept for backward compatibility
   onSendRequest: (userId: string) => void;
   onAcceptRequest: (requestId: string) => void;
   onDeclineRequest: (requestId: string) => void;
@@ -19,25 +21,39 @@ interface SocialHubProps {
 type SocialView = 'LIST' | 'CHAT' | 'ISSUE_TASK';
 type ListTab = 'ALLIES' | 'WIRE' | 'SEARCH';
 
-const SocialHub: React.FC<SocialHubProps> = ({ 
-  userProfile, friends, requests, mockUsers, messages, 
-  onSendRequest, onAcceptRequest, onDeclineRequest, onUnfriend, onSendMessage, onIssueTask 
+const SocialHub: React.FC<SocialHubProps> = ({
+  userProfile, currentUserId, friends, requests, mockUsers,
+  onSendRequest, onAcceptRequest, onDeclineRequest, onUnfriend, onSendMessage, onIssueTask
 }) => {
   const [view, setView] = useState<SocialView>('LIST');
   const [activeTab, setActiveTab] = useState<ListTab>('ALLIES');
   const [selectedUser, setSelectedUser] = useState<SocialUser | null>(null);
   const [chatInput, setChatInput] = useState('');
-  
+
+  // Chat messages for current conversation (real-time)
+  const [chatMessages, setChatMessages] = useState<SocialMessage[]>([]);
+
   // Task Issue State
   const [taskTitle, setTaskTitle] = useState('');
   const [taskBriefing, setTaskBriefing] = useState('');
   const [issueSuccess, setIssueSuccess] = useState(false);
 
+  // Subscribe to messages when chat is opened
+  useEffect(() => {
+    if (view === 'CHAT' && selectedUser && currentUserId) {
+      const unsubscribe = subscribeMessages(currentUserId, selectedUser.id, (messages) => {
+        setChatMessages(messages);
+      });
+
+      return () => unsubscribe();
+    }
+  }, [view, selectedUser, currentUserId]);
+
   // Auto-scroll chat
   const chatEndRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, view]);
+  }, [chatMessages, view]);
 
   const handleChatOpen = (user: SocialUser) => {
     setSelectedUser(user);
@@ -167,11 +183,6 @@ const SocialHub: React.FC<SocialHubProps> = ({
   };
 
   if (view === 'CHAT' && selectedUser) {
-    const thread = messages.filter(m => 
-        (m.fromId === userProfile.codename && m.toId === selectedUser.id) || 
-        (m.fromId === selectedUser.id && m.toId === userProfile.codename)
-    ).sort((a,b) => a.timestamp.localeCompare(b.timestamp));
-
     return (
         <div className="flex flex-col h-[calc(100vh-180px)] pb-24 animate-in fade-in">
             <div className="flex items-center gap-3 border-b border-slate-700 pb-4 mb-4">
@@ -186,11 +197,11 @@ const SocialHub: React.FC<SocialHubProps> = ({
                     <div className="text-[10px] text-slate-500 font-mono">SECURE CONNECTION</div>
                 </div>
             </div>
-            
+
             <div className="flex-1 overflow-y-auto space-y-3 p-2 custom-scrollbar">
-                {thread.length === 0 && <div className="text-center text-slate-600 font-mono text-xs mt-10">ENCRYPTION KEYS EXCHANGED. START TYPING.</div>}
-                {thread.map(msg => {
-                    const isMe = msg.fromId === userProfile.codename;
+                {chatMessages.length === 0 && <div className="text-center text-slate-600 font-mono text-xs mt-10">ENCRYPTION KEYS EXCHANGED. START TYPING.</div>}
+                {chatMessages.map(msg => {
+                    const isMe = msg.fromId === currentUserId;
                     return (
                         <div key={msg.id} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
                             <div className={`max-w-[80%] p-3 rounded font-mono text-sm ${
