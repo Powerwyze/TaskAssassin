@@ -29,6 +29,7 @@ const SocialHub: React.FC<SocialHubProps> = ({
   const [activeTab, setActiveTab] = useState<ListTab>('ALLIES');
   const [selectedUser, setSelectedUser] = useState<SocialUser | null>(null);
   const [chatInput, setChatInput] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
 
   // Chat messages for current conversation (real-time)
   const [chatMessages, setChatMessages] = useState<SocialMessage[]>([]);
@@ -153,14 +154,33 @@ const SocialHub: React.FC<SocialHubProps> = ({
     }
 
     if (activeTab === 'SEARCH') {
+        // Filter users by search query (case-insensitive) and exclude current friends
+        const filteredUsers = mockUsers.filter(u =>
+            !friends.find(f => f.id === u.id) &&
+            u.codename.toLowerCase().includes(searchQuery.toLowerCase())
+        );
+
         return (
             <div className="space-y-3">
                 <div className="relative mb-4">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
-                    <input type="text" placeholder="SEARCH AGENT DB..." className="w-full bg-slate-900 border border-slate-700 rounded py-2 pl-10 pr-4 text-sm font-mono text-white focus:outline-none focus:border-green-500" />
+                    <input
+                        type="text"
+                        placeholder="SEARCH AGENT DB..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        className="w-full bg-slate-900 border border-slate-700 rounded py-2 pl-10 pr-4 text-sm font-mono text-white focus:outline-none focus:border-green-500"
+                    />
                 </div>
-                <div className="text-[10px] text-slate-500 font-mono mb-2 uppercase">Recommended Agents</div>
-                {mockUsers.filter(u => !friends.find(f => f.id === u.id)).map(user => (
+                <div className="text-[10px] text-slate-500 font-mono mb-2 uppercase">
+                    {searchQuery ? `Search Results (${filteredUsers.length})` : 'All Agents'}
+                </div>
+                {filteredUsers.length === 0 && searchQuery && (
+                    <div className="p-8 text-center text-slate-500 font-mono text-sm">
+                        NO AGENTS FOUND MATCHING "{searchQuery}"
+                    </div>
+                )}
+                {filteredUsers.map(user => (
                     <div key={user.id} className="bg-slate-800/50 border border-slate-700 p-3 rounded flex items-center justify-between animate-in slide-in-from-bottom-1">
                          <div className="flex items-center gap-3">
                              <div className="w-8 h-8 bg-slate-700 rounded-full overflow-hidden">

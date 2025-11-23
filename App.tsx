@@ -340,22 +340,22 @@ const App: React.FC = () => {
     <div className="space-y-6 animate-in slide-in-from-left duration-300">
       {/* Stats Bar */}
       <div className="grid grid-cols-2 gap-4">
-        <div className="bg-slate-800 p-4 rounded border border-slate-700 flex items-center gap-3">
-            <div className="p-2 bg-yellow-500/10 rounded-full text-yellow-500">
-                <Shield className="w-6 h-6" />
+        <div className="bg-gradient-to-br from-purple-900/40 to-slate-900/40 p-4 rounded-lg border border-purple-500/30 flex items-center gap-3 shadow-neon-purple">
+            <div className="p-2 bg-gradient-to-br from-cyber-purple to-cyber-pink rounded-full shadow-lg">
+                <Shield className="w-6 h-6 text-white" />
             </div>
             <div>
-                <div className="text-xs text-slate-500 font-mono uppercase">Reputation</div>
-                <div className="text-xl font-bold font-mono text-white">{totalStars} STARS</div>
+                <div className="text-xs text-purple-300 font-mono uppercase">Reputation</div>
+                <div className="text-xl font-bold font-mono bg-gradient-to-r from-cyber-purple to-cyber-pink bg-clip-text text-transparent">{totalStars} STARS</div>
             </div>
         </div>
-        <div className="bg-slate-800 p-4 rounded border border-slate-700 flex items-center gap-3 opacity-50">
-            <div className="p-2 bg-emerald-500/10 rounded-full text-emerald-500">
-                <Wallet className="w-6 h-6" />
+        <div className="bg-gradient-to-br from-cyan-900/40 to-slate-900/40 p-4 rounded-lg border border-cyan-500/30 flex items-center gap-3 shadow-neon-cyan">
+            <div className="p-2 bg-gradient-to-br from-cyber-cyan to-neon-green rounded-full shadow-lg">
+                <Wallet className="w-6 h-6 text-white" />
             </div>
             <div>
-                <div className="text-xs text-slate-500 font-mono uppercase">Wallet</div>
-                <div className="text-xl font-bold font-mono text-white">$0.00</div>
+                <div className="text-xs text-cyan-300 font-mono uppercase">Wallet</div>
+                <div className="text-xl font-bold font-mono bg-gradient-to-r from-cyber-cyan to-neon-green bg-clip-text text-transparent">$0.00</div>
             </div>
         </div>
       </div>
@@ -364,9 +364,9 @@ const App: React.FC = () => {
       <div>
         <div className="flex justify-between items-center mb-4">
             <h2 className="text-slate-400 font-mono text-sm uppercase tracking-wider">Active Contracts</h2>
-            <button 
+            <button
                 onClick={() => setView('CREATE_MISSION')}
-                className="flex items-center gap-2 text-xs font-bold bg-green-600 hover:bg-green-500 text-black px-4 py-2 rounded font-mono transition-colors"
+                className="flex items-center gap-2 text-xs font-bold bg-gradient-to-r from-neon-green to-cyber-cyan hover:from-cyber-cyan hover:to-neon-green text-black px-4 py-2 rounded-lg font-mono transition-all shadow-neon-cyan"
             >
                 <Plus className="w-4 h-4" /> NEW MISSION
             </button>
@@ -374,7 +374,7 @@ const App: React.FC = () => {
         
         <div className="space-y-3 pb-24">
             {missions.map(m => (
-                <div key={m.id} className="bg-slate-800/50 border border-slate-700 hover:border-green-500/50 transition-all rounded-lg p-4 flex items-center justify-between group relative overflow-hidden">
+                <div key={m.id} className="bg-gradient-to-r from-slate-800/50 to-slate-900/50 border border-purple-500/30 hover:border-cyber-cyan hover:shadow-neon-cyan transition-all rounded-lg p-4 flex items-center justify-between group relative overflow-hidden">
                     {/* Recurrence Badge */}
                     {m.recurrence && (
                         <div className="absolute top-0 right-0 bg-slate-700 text-slate-300 text-[10px] px-2 py-0.5 font-mono rounded-bl">
@@ -573,20 +573,20 @@ const App: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#0f172a] text-slate-100 relative overflow-hidden flex flex-col">
+    <div className="min-h-screen text-slate-100 relative overflow-hidden flex flex-col">
       {/* Grid Overlay */}
-      <div className="absolute inset-0 pointer-events-none" 
-           style={{backgroundImage: 'linear-gradient(rgba(16, 185, 129, 0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(16, 185, 129, 0.03) 1px, transparent 1px)', backgroundSize: '40px 40px'}}>
+      <div className="absolute inset-0 pointer-events-none"
+           style={{backgroundImage: 'linear-gradient(rgba(6, 182, 212, 0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(168, 85, 247, 0.05) 1px, transparent 1px)', backgroundSize: '40px 40px'}}>
       </div>
 
-      <header className="border-b border-slate-800 bg-slate-900/80 backdrop-blur sticky top-0 z-50">
+      <header className="border-b border-purple-900/50 bg-gradient-to-r from-slate-900/90 via-purple-900/20 to-slate-900/90 backdrop-blur sticky top-0 z-50 shadow-lg shadow-purple-500/10">
         <div className="max-w-md mx-auto px-4 h-16 flex items-center justify-between">
           <div className="flex items-center gap-2" onClick={() => setView('DASHBOARD')}>
-            <div className="bg-green-600 p-1 rounded cursor-pointer">
+            <div className="bg-gradient-to-br from-cyber-cyan to-neon-green p-1 rounded cursor-pointer shadow-neon-cyan">
                 <Crosshair className="w-5 h-5 text-black" />
             </div>
-            <h1 className="text-lg font-bold font-mono tracking-tighter text-white cursor-pointer">
-                TASK<span className="text-green-500">ASSASSIN</span>
+            <h1 className="text-lg font-bold font-mono tracking-tighter cursor-pointer bg-gradient-to-r from-cyber-cyan via-neon-green to-cyber-purple bg-clip-text text-transparent">
+                TASK<span className="text-cyber-pink">ASSASSIN</span>
             </h1>
           </div>
           <div className="text-[10px] font-mono text-slate-500 text-right cursor-default flex items-center gap-2">
@@ -662,7 +662,7 @@ const App: React.FC = () => {
       </main>
 
       {/* Bottom Navigation */}
-      <nav className="fixed bottom-0 left-0 right-0 bg-slate-900 border-t border-slate-800 py-3 z-50 max-w-md mx-auto">
+      <nav className="fixed bottom-0 left-0 right-0 bg-gradient-to-r from-slate-900/95 via-purple-900/20 to-slate-900/95 border-t border-purple-500/30 py-3 z-50 max-w-md mx-auto backdrop-blur shadow-lg shadow-purple-500/10">
         <div className="flex justify-around items-center">
           
           {/* OPS Button */}
@@ -670,23 +670,23 @@ const App: React.FC = () => {
             <div className="absolute bottom-full mb-3 hidden group-hover:block bg-slate-900 border border-green-500 text-green-500 text-[10px] px-3 py-1 rounded shadow-[0_0_15px_rgba(34,197,94,0.2)] whitespace-nowrap font-mono z-50 pointer-events-none">
               MANAGE OPERATIONS
             </div>
-            <button 
+            <button
               onClick={() => setView('DASHBOARD')}
-              className={`flex flex-col items-center gap-1 ${view === 'DASHBOARD' || view === 'CREATE_MISSION' || view === 'EXECUTE_MISSION' ? 'text-green-500' : 'text-slate-500'}`}
+              className={`flex flex-col items-center gap-1 transition-all ${view === 'DASHBOARD' || view === 'CREATE_MISSION' || view === 'EXECUTE_MISSION' ? 'text-cyber-cyan drop-shadow-[0_0_8px_rgba(6,182,212,0.8)]' : 'text-slate-500 hover:text-slate-300'}`}
             >
               <Shield className="w-6 h-6" />
               <span className="text-[10px] font-mono">OPS</span>
             </button>
           </div>
-          
+
           {/* Task Maker Button */}
           <div className="relative group flex flex-col items-center">
-            <div className="absolute bottom-full mb-3 hidden group-hover:block bg-slate-900 border border-green-500 text-green-500 text-[10px] px-3 py-1 rounded shadow-[0_0_15px_rgba(34,197,94,0.2)] whitespace-nowrap font-mono z-50 pointer-events-none">
+            <div className="absolute bottom-full mb-3 hidden group-hover:block bg-slate-900 border border-cyber-purple text-cyber-purple text-[10px] px-3 py-1 rounded shadow-neon-purple whitespace-nowrap font-mono z-50 pointer-events-none">
               CREATE NEW TASKS
             </div>
-            <button 
+            <button
               onClick={() => setView('CHAT')}
-              className={`flex flex-col items-center gap-1 ${view === 'CHAT' ? 'text-green-500' : 'text-slate-500'}`}
+              className={`flex flex-col items-center gap-1 transition-all ${view === 'CHAT' ? 'text-cyber-purple drop-shadow-[0_0_8px_rgba(168,85,247,0.8)]' : 'text-slate-500 hover:text-slate-300'}`}
             >
               <MessageSquare className="w-6 h-6" />
               <span className="text-[10px] font-mono whitespace-nowrap">TASK MAKER</span>
@@ -695,12 +695,12 @@ const App: React.FC = () => {
 
           {/* Social Button (New) */}
           <div className="relative group flex flex-col items-center">
-            <div className="absolute bottom-full mb-3 hidden group-hover:block bg-slate-900 border border-green-500 text-green-500 text-[10px] px-3 py-1 rounded shadow-[0_0_15px_rgba(34,197,94,0.2)] whitespace-nowrap font-mono z-50 pointer-events-none">
+            <div className="absolute bottom-full mb-3 hidden group-hover:block bg-slate-900 border border-neon-green text-neon-green text-[10px] px-3 py-1 rounded shadow-neon-green whitespace-nowrap font-mono z-50 pointer-events-none">
               NETWORK
             </div>
-            <button 
+            <button
               onClick={() => setView('SOCIAL')}
-              className={`flex flex-col items-center gap-1 ${view === 'SOCIAL' ? 'text-green-500' : 'text-slate-500'}`}
+              className={`flex flex-col items-center gap-1 transition-all ${view === 'SOCIAL' ? 'text-neon-green drop-shadow-[0_0_8px_rgba(16,185,129,0.8)]' : 'text-slate-500 hover:text-slate-300'}`}
             >
               <Globe className="w-6 h-6" />
               <span className="text-[10px] font-mono">NETWORK</span>
@@ -709,12 +709,12 @@ const App: React.FC = () => {
 
           {/* ID Button */}
           <div className="relative group flex flex-col items-center">
-            <div className="absolute bottom-full mb-3 hidden group-hover:block bg-slate-900 border border-green-500 text-green-500 text-[10px] px-3 py-1 rounded shadow-[0_0_15px_rgba(34,197,94,0.2)] whitespace-nowrap font-mono z-50 pointer-events-none">
+            <div className="absolute bottom-full mb-3 hidden group-hover:block bg-slate-900 border border-cyber-pink text-cyber-pink text-[10px] px-3 py-1 rounded shadow-neon-pink whitespace-nowrap font-mono z-50 pointer-events-none">
               AGENT PROFILE
             </div>
-            <button 
+            <button
               onClick={() => setView('PROFILE')}
-              className={`flex flex-col items-center gap-1 ${view === 'PROFILE' ? 'text-green-500' : 'text-slate-500'}`}
+              className={`flex flex-col items-center gap-1 transition-all ${view === 'PROFILE' ? 'text-cyber-pink drop-shadow-[0_0_8px_rgba(236,72,153,0.8)]' : 'text-slate-500 hover:text-slate-300'}`}
             >
               <UserCircle className="w-6 h-6" />
               <span className="text-[10px] font-mono">ID</span>

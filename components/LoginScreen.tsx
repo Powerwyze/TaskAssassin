@@ -51,28 +51,31 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center p-6 relative overflow-hidden">
-      {/* Matrix background effect */}
-      <div className="absolute inset-0 opacity-10 pointer-events-none" 
-           style={{backgroundImage: 'linear-gradient(0deg, transparent 24%, rgba(0, 255, 0, .3) 25%, rgba(0, 255, 0, .3) 26%, transparent 27%, transparent 74%, rgba(0, 255, 0, .3) 75%, rgba(0, 255, 0, .3) 76%, transparent 77%, transparent), linear-gradient(90deg, transparent 24%, rgba(0, 255, 0, .3) 25%, rgba(0, 255, 0, .3) 26%, transparent 27%, transparent 74%, rgba(0, 255, 0, .3) 75%, rgba(0, 255, 0, .3) 76%, transparent 77%, transparent)', backgroundSize: '50px 50px'}}>
+    <div className="min-h-screen flex flex-col items-center justify-center p-6 relative overflow-hidden">
+      {/* Animated gradient background effect */}
+      <div className="absolute inset-0 opacity-20 pointer-events-none">
+        <div className="absolute inset-0 bg-gradient-to-br from-cyber-purple via-cyber-cyan to-neon-green opacity-30 animate-pulse-slow"></div>
+        <div className="absolute inset-0"
+             style={{backgroundImage: 'linear-gradient(0deg, transparent 24%, rgba(6, 182, 212, .2) 25%, rgba(6, 182, 212, .2) 26%, transparent 27%, transparent 74%, rgba(168, 85, 247, .2) 75%, rgba(168, 85, 247, .2) 76%, transparent 77%, transparent), linear-gradient(90deg, transparent 24%, rgba(16, 185, 129, .2) 25%, rgba(16, 185, 129, .2) 26%, transparent 27%, transparent 74%, rgba(236, 72, 153, .2) 75%, rgba(236, 72, 153, .2) 76%, transparent 77%, transparent)', backgroundSize: '50px 50px'}}>
+        </div>
       </div>
 
       <div className="max-w-sm w-full space-y-8 z-10">
         <div className="text-center space-y-2">
-          <div className="w-20 h-20 mx-auto bg-slate-900 rounded-full border-2 border-green-500 flex items-center justify-center relative shadow-[0_0_20px_rgba(16,185,129,0.3)]">
+          <div className="w-20 h-20 mx-auto bg-gradient-to-br from-slate-900 to-purple-900 rounded-full border-2 border-cyber-cyan flex items-center justify-center relative shadow-neon-cyan animate-pulse-slow">
              {accessGranted ? (
-               <ShieldCheck className="w-10 h-10 text-green-400 animate-bounce" />
+               <ShieldCheck className="w-10 h-10 text-neon-green animate-bounce drop-shadow-[0_0_10px_rgba(16,185,129,1)]" />
              ) : isScanning ? (
-               <Scan className="w-10 h-10 text-green-500 animate-spin" />
+               <Scan className="w-10 h-10 text-cyber-cyan animate-spin drop-shadow-[0_0_10px_rgba(6,182,212,1)]" />
              ) : (
-               <Fingerprint className="w-10 h-10 text-slate-500" />
+               <Fingerprint className="w-10 h-10 text-purple-400 drop-shadow-[0_0_10px_rgba(168,85,247,0.5)]" />
              )}
-             {isScanning && <div className="absolute inset-0 border-4 border-green-500 rounded-full animate-ping opacity-20"></div>}
+             {isScanning && <div className="absolute inset-0 border-4 border-cyber-purple rounded-full animate-ping opacity-40"></div>}
           </div>
-          <h1 className="text-3xl font-mono font-bold text-white tracking-tighter">
-            TASK<span className="text-green-500">ASSASSIN</span>
+          <h1 className="text-3xl font-mono font-bold tracking-tighter bg-gradient-to-r from-cyber-cyan via-neon-green to-cyber-purple bg-clip-text text-transparent">
+            TASK<span className="bg-gradient-to-r from-cyber-pink to-cyber-purple bg-clip-text text-transparent">ASSASSIN</span>
           </h1>
-          <p className="text-slate-500 font-mono text-xs tracking-[0.2em]">SECURE TERMINAL LOGIN</p>
+          <p className="text-purple-400 font-mono text-xs tracking-[0.2em]">SECURE TERMINAL LOGIN</p>
         </div>
 
         {!accessGranted ? (
@@ -152,7 +155,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
             <button
               type="submit"
               disabled={isScanning}
-              className="w-full bg-green-600 hover:bg-green-500 text-black font-bold font-mono py-3 rounded-lg transition-all transform hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed shadow-[0_0_15px_rgba(22,163,74,0.5)]"
+              className="w-full bg-gradient-to-r from-neon-green via-cyber-cyan to-cyber-purple hover:from-cyber-purple hover:via-cyber-cyan hover:to-neon-green text-white font-bold font-mono py-3 rounded-lg transition-all transform hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed shadow-neon-cyan"
             >
               {isScanning
                 ? 'VERIFYING BIOMETRICS...'
@@ -162,7 +165,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
             </button>
           </form>
         ) : (
-          <div className="bg-green-500/10 border border-green-500 text-green-400 p-4 rounded-lg text-center font-mono animate-in zoom-in duration-300">
+          <div className="bg-gradient-to-r from-neon-green/10 to-cyber-cyan/10 border border-neon-green text-neon-green p-4 rounded-lg text-center font-mono animate-in zoom-in duration-300 shadow-neon-green">
             <p className="text-lg font-bold">ACCESS GRANTED</p>
             <p className="text-sm mt-2">WELCOME, AGENT</p>
             <p className="text-xs mt-4 animate-pulse">LOADING MISSION DATA...</p>
