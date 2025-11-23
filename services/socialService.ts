@@ -190,33 +190,44 @@ export const searchUsers = async (searchTerm: string, currentUid: string): Promi
  * Get all users (for recommendations)
  */
 export const getAllUsers = async (currentUid: string, limit: number = 10): Promise<SocialUser[]> => {
-  const usersRef = ref(database, 'users');
-  const snapshot = await get(usersRef);
-  const users: SocialUser[] = [];
+  try {
+    console.log('🔍 Fetching all users from Firebase...');
+    const usersRef = ref(database, 'users');
+    const snapshot = await get(usersRef);
+    const users: SocialUser[] = [];
 
-  if (snapshot.exists()) {
-    const data = snapshot.val();
-    let count = 0;
+    if (snapshot.exists()) {
+      const data = snapshot.val();
+      console.log('✅ Users data retrieved:', Object.keys(data).length, 'users found');
+      let count = 0;
 
-    for (const uid in data) {
-      if (uid === currentUid) continue; // Skip current user
-      if (count >= limit) break;
+      for (const uid in data) {
+        if (uid === currentUid) continue; // Skip current user
+        if (count >= limit) break;
 
-      const profile = data[uid].profile;
-      if (profile && profile.codename) {
-        users.push({
-          id: uid,
-          codename: profile.codename,
-          avatar: profile.avatar,
-          status: 'OFFLINE',
-          handlerId: profile.handlerId
-        });
-        count++;
+        const profile = data[uid].profile;
+        if (profile && profile.codename) {
+          console.log('👤 Found user:', profile.codename);
+          users.push({
+            id: uid,
+            codename: profile.codename,
+            avatar: profile.avatar,
+            status: 'OFFLINE',
+            handlerId: profile.handlerId
+          });
+          count++;
+        }
       }
+      console.log('📋 Returning', users.length, 'users');
+    } else {
+      console.log('⚠️ No users found in database');
     }
-  }
 
-  return users;
+    return users;
+  } catch (error) {
+    console.error('❌ Error fetching users:', error);
+    return [];
+  }
 };
 
 // ==================== MESSAGES ====================
