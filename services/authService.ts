@@ -24,7 +24,8 @@ export const registerUser = async (email: string, password: string, codename: st
   const userProfile: UserProfile = {
     codename,
     handlerId: '1', // Default handler
-    lifeGoal: ''
+    lifeGoal: '',
+    hasSeenTutorial: false
   };
 
   await set(ref(database, `users/${user.uid}/profile`), userProfile);

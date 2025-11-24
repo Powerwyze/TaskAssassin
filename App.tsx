@@ -1,11 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Crosshair, Wallet, Shield, Calendar, ArrowLeft, Check, MessageSquare, Settings, RotateCcw, UserCircle, Clock, Globe } from 'lucide-react';
+import { Plus, Crosshair, Wallet, Shield, Calendar, ArrowLeft, Check, MessageSquare, Settings, RotateCcw, UserCircle, Clock, Globe, AlertTriangle, HelpCircle } from 'lucide-react';
 import SpyCamera from './components/SpyCamera';
 import MissionDossier from './components/MissionDossier';
 import LoginScreen from './components/LoginScreen';
 import ProfileSettings from './components/ProfileSettings';
 import TacticalChat from './components/TacticalChat';
 import SocialHub from './components/SocialHub';
+import TutorialOverlay from './components/TutorialOverlay';
+import BugReportModal from './components/BugReportModal';
+import AdminPage from './components/AdminPage';
 import { verifyIntel } from './services/geminiService';
 import { subscribeToAuthState, getUserProfile, updateUserProfile } from './services/authService';
 import {
@@ -44,7 +47,7 @@ const HANDLERS: HandlerPersona[] = [
   { id: '16', name: 'THE OTAKU', description: 'Anime refs, dramatic, Japanese loanwords.', systemPrompt: 'You are a high-energy Anime fan. Use Japanese loanwords (Sugoi, Baka, Ganbatte, Senpai). Treat the mess like a powerful villain that must be defeated with the power of friendship and hard work.' },
 ];
 
-type ViewState = 'LOGIN' | 'DASHBOARD' | 'CREATE_MISSION' | 'EXECUTE_MISSION' | 'DEBRIEF' | 'PROFILE' | 'CHAT' | 'SOCIAL';
+type ViewState = 'LOGIN' | 'DASHBOARD' | 'CREATE_MISSION' | 'EXECUTE_MISSION' | 'DEBRIEF' | 'PROFILE' | 'CHAT' | 'SOCIAL' | 'ADMIN';
 
 const INITIAL_MISSIONS: Mission[] = [
   {
@@ -76,6 +79,10 @@ const App: React.FC = () => {
   const [socialMessages, setSocialMessages] = useState<SocialMessage[]>([]);
   const [allUsers, setAllUsers] = useState<SocialUser[]>([]);
 
+  // UI State
+  const [showTutorial, setShowTutorial] = useState(false);
+  const [showBugReport, setShowBugReport] = useState(false);
+
   // Creation State
   const [newMissionData, setNewMissionData] = useState<{
     title: string;
@@ -100,10 +107,13 @@ const App: React.FC = () => {
         const profile = await getUserProfile(user.uid);
         if (profile) {
           setUserProfile(profile);
+          if (profile.hasSeenTutorial === false) {
+            setShowTutorial(true);
+          }
           setView('DASHBOARD');
         } else {
           // New user, needs to set up profile
-          setUserProfile({ codename: user.displayName || '', handlerId: '1', lifeGoal: '' });
+          setUserProfile({ codename: user.displayName || '', handlerId: '1', lifeGoal: '', hasSeenTutorial: false });
           setView('PROFILE');
         }
       } else {
@@ -275,6 +285,15 @@ const App: React.FC = () => {
     }
   };
 
+  const handleTutorialClose = async () => {
+    setShowTutorial(false);
+    if (currentUserId) {
+      const updatedProfile = { ...userProfile, hasSeenTutorial: true };
+      setUserProfile(updatedProfile);
+      await updateUserProfile(currentUserId, updatedProfile);
+    }
+  };
+
   // --- SOCIAL ACTIONS ---
 
   const handleSendFriendRequest = async (userId: string) => {
@@ -331,13 +350,27 @@ const App: React.FC = () => {
     }
   };
 
-  const handleIssueSocialTask = async (toUserId: string, title: string, briefing: string) => {
+  const handleIssueSocialTask = async (toUserId: string, title: string, briefing: string, deadline: string) => {
     if (!currentUserId) return;
 
     try {
-      await issueTask(currentUserId, toUserId, title, briefing);
+      await issueTask(currentUserId, toUserId, title, briefing, deadline);
     } catch (error: any) {
       alert(`Failed to issue task: ${error.message}`);
+    }
+  };
+
+  const handleAdminAccess = () => {
+    const username = prompt("ENTER ADMIN CREDENTIALS:\nUsername:");
+    if (username === 'admin') {
+      const password = prompt("Password:");
+      if (password === 'woody') {
+        setView('ADMIN');
+      } else {
+        alert("ACCESS DENIED. INCORRECT PASSWORD.");
+      }
+    } else {
+      alert("ACCESS DENIED. USER NOT RECOGNIZED.");
     }
   };
 
@@ -357,6 +390,10 @@ const App: React.FC = () => {
 
   if (view === 'LOGIN') {
     return <LoginScreen onLogin={handleLogin} />;
+  }
+
+  if (view === 'ADMIN') {
+    return <AdminPage onExit={() => setView('DASHBOARD')} />;
   }
 
   const renderDashboard = () => (
@@ -387,12 +424,21 @@ const App: React.FC = () => {
       <div>
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-slate-400 font-mono text-sm uppercase tracking-wider">Active Contracts</h2>
-          <button
-            onClick={() => setView('CREATE_MISSION')}
-            className="flex items-center gap-2 text-xs font-bold bg-gradient-to-r from-neon-green to-cyber-cyan hover:from-cyber-cyan hover:to-neon-green text-black px-4 py-2 rounded-lg font-mono transition-all shadow-neon-cyan"
-          >
-            <Plus className="w-4 h-4" /> NEW MISSION
-          </button>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setShowTutorial(true)}
+              className="flex items-center gap-2 text-xs font-bold bg-slate-800 text-slate-300 hover:text-white px-3 py-2 rounded-lg font-mono transition-all border border-slate-700"
+              title="How to Use"
+            >
+              <HelpCircle className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => setView('CREATE_MISSION')}
+              className="flex items-center gap-2 text-xs font-bold bg-gradient-to-r from-neon-green to-cyber-cyan hover:from-cyber-cyan hover:to-neon-green text-black px-4 py-2 rounded-lg font-mono transition-all shadow-neon-cyan"
+            >
+              <Plus className="w-4 h-4" /> NEW MISSION
+            </button>
+          </div>
         </div>
 
         <div className="space-y-3 pb-24">
@@ -639,22 +685,37 @@ const App: React.FC = () => {
         )}
 
         {view === 'PROFILE' && (
-          <ProfileSettings
-            userProfile={userProfile}
-            handlers={HANDLERS}
-            onUpdateProfile={async (p) => {
-              setUserProfile(p);
-              if (currentUserId) {
-                try {
-                  await updateUserProfile(currentUserId, p);
-                } catch (error: any) {
-                  console.error('Failed to update profile:', error);
+          <div>
+            <ProfileSettings
+              userProfile={userProfile}
+              handlers={HANDLERS}
+              onUpdateProfile={async (p) => {
+                setUserProfile(p);
+                if (currentUserId) {
+                  try {
+                    await updateUserProfile(currentUserId, p);
+                  } catch (error: any) {
+                    console.error('Failed to update profile:', error);
+                  }
                 }
-              }
-            }}
-            onComplete={() => setView('DASHBOARD')}
-            onLogout={handleLogout}
-          />
+              }}
+              onComplete={() => {
+                if (userProfile.hasSeenTutorial === false) {
+                  setShowTutorial(true);
+                }
+                setView('DASHBOARD');
+              }}
+              onLogout={handleLogout}
+            />
+            <div className="mt-8 text-center">
+              <button
+                onClick={handleAdminAccess}
+                className="text-[10px] text-slate-700 hover:text-red-900 font-mono uppercase tracking-widest"
+              >
+                Admin Access
+              </button>
+            </div>
+          </div>
         )}
 
         {view === 'CHAT' && (
@@ -682,6 +743,23 @@ const App: React.FC = () => {
           />
         )}
       </main>
+
+      {/* Overlays */}
+      {showTutorial && <TutorialOverlay onClose={handleTutorialClose} />}
+      <BugReportModal
+        isOpen={showBugReport}
+        onClose={() => setShowBugReport(false)}
+        currentUserId={currentUserId || 'anonymous'}
+      />
+
+      {/* Bug Report Button (Floating) */}
+      <button
+        onClick={() => setShowBugReport(true)}
+        className="fixed bottom-20 right-4 z-40 p-2 bg-red-900/20 border border-red-500/30 text-red-500 rounded-full hover:bg-red-900/50 transition-all shadow-lg"
+        title="Report Bug"
+      >
+        <AlertTriangle className="w-5 h-5" />
+      </button>
 
       {/* Bottom Navigation */}
       <nav className="fixed bottom-0 left-0 right-0 bg-gradient-to-r from-slate-900/95 via-purple-900/20 to-slate-900/95 border-t border-purple-500/30 py-3 z-50 max-w-md mx-auto backdrop-blur shadow-lg shadow-purple-500/10">

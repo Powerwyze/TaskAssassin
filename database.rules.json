@@ -36,6 +36,10 @@
                 ".read": "$uid === auth.uid",
                 ".write": "auth != null"
             }
+        },
+        "bugReports": {
+            ".read": "auth != null",
+            ".write": "auth != null"
         }
     }
 }

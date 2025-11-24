@@ -32,6 +32,10 @@ export interface HandlerPersona {
   name: string;
   description: string;
   systemPrompt: string;
+  suggestedMissions?: {
+    title: string;
+    briefing: string;
+  }[];
 }
 
 export interface UserProfile {
@@ -39,6 +43,7 @@ export interface UserProfile {
   handlerId: string;
   lifeGoal: string;
   avatar?: string;
+  hasSeenTutorial?: boolean;
 }
 
 export interface ChatMessage {
@@ -58,7 +63,7 @@ export interface SocialUser {
   codename: string;
   avatar?: string;
   status: 'ONLINE' | 'OFFLINE' | 'BUSY';
-  handlerId: string; 
+  handlerId: string;
 }
 
 export interface FriendRequest {

@@ -325,18 +325,22 @@ export const subscribeMessages = (
 /**
  * Issue a task to another user
  */
+/**
+ * Issue a task to another user
+ */
 export const issueTask = async (
   fromUid: string,
   toUid: string,
   title: string,
-  briefing: string
+  briefing: string,
+  deadline: string
 ): Promise<void> => {
   const taskRef = push(ref(database, `tasks/${toUid}`));
   await set(taskRef, {
     id: taskRef.key,
     codename: title.toUpperCase(),
     briefing,
-    deadline: new Date().toISOString().split('T')[0],
+    deadline,
     startImage: 'https://placehold.co/400x300/1e293b/ef4444?text=PENDING+SCAN',
     status: 'PROPOSED',
     stars: 0,
@@ -345,7 +349,7 @@ export const issueTask = async (
   });
 
   // Also send a notification message
-  await sendMessage(fromUid, toUid, `>> CONTRACT ISSUED: ${title}`);
+  await sendMessage(fromUid, toUid, `>> CONTRACT ISSUED: ${title} (DUE: ${deadline})`);
 };
 
 /**
@@ -369,4 +373,31 @@ export const subscribeTasks = (
   });
 
   return unsubscribe;
+};
+
+// ==================== ADMIN / BUGS ====================
+
+export const reportBug = async (uid: string, description: string): Promise<void> => {
+  const bugRef = push(ref(database, 'bugReports'));
+  await set(bugRef, {
+    id: bugRef.key,
+    reporterId: uid,
+    description,
+    timestamp: serverTimestamp(),
+    status: 'OPEN'
+  });
+};
+
+export const subscribeBugReports = (callback: (reports: any[]) => void): (() => void) => {
+  const bugsRef = ref(database, 'bugReports');
+  return onValue(bugsRef, (snapshot) => {
+    const reports: any[] = [];
+    if (snapshot.exists()) {
+      const data = snapshot.val();
+      Object.values(data).forEach((report: any) => {
+        reports.push(report);
+      });
+    }
+    callback(reports);
+  });
 };
