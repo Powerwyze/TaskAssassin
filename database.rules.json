@@ -1,0 +1,41 @@
+{
+    "rules": {
+        "users": {
+            ".read": "auth != null",
+            "$uid": {
+                ".write": "$uid === auth.uid",
+                "profile": {
+                    ".write": "$uid === auth.uid"
+                }
+            }
+        },
+        "friends": {
+            "$uid": {
+                ".read": "$uid === auth.uid",
+                "$friendUid": {
+                    ".write": "$uid === auth.uid || $friendUid === auth.uid"
+                }
+            }
+        },
+        "friendRequests": {
+            "$uid": {
+                ".read": "$uid === auth.uid",
+                "$requestId": {
+                    ".write": "$uid === auth.uid || !data.exists()"
+                }
+            }
+        },
+        "messages": {
+            "$threadId": {
+                ".read": "auth != null",
+                ".write": "auth != null"
+            }
+        },
+        "tasks": {
+            "$uid": {
+                ".read": "$uid === auth.uid",
+                ".write": "auth != null"
+            }
+        }
+    }
+}

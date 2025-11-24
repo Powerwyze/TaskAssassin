@@ -235,31 +235,32 @@ export const getAllUsers = async (currentUid: string, limit: number = 10): Promi
 /**
  * Send a message to another user
  */
+/**
+ * Send a message to another user
+ */
 export const sendMessage = async (
   fromUid: string,
   toUid: string,
   text: string
 ): Promise<void> => {
+  // Generate a unique ID for the message
+  const tempRef = push(ref(database, `messages/${fromUid}_${toUid}`));
+  const messageId = tempRef.key;
+
   const messageData = {
+    id: messageId,
     fromId: fromUid,
     toId: toUid,
     text,
     timestamp: serverTimestamp()
   };
 
-  // Create message in both users' message threads
-  const messageRef = push(ref(database, `messages/${fromUid}_${toUid}`));
-  await set(messageRef, {
-    ...messageData,
-    id: messageRef.key
-  });
+  // Create updates object for atomic update
+  const updates: { [key: string]: any } = {};
+  updates[`messages/${fromUid}_${toUid}/${messageId}`] = messageData;
+  updates[`messages/${toUid}_${fromUid}/${messageId}`] = messageData;
 
-  // Also store in recipient's thread
-  const recipientMessageRef = push(ref(database, `messages/${toUid}_${fromUid}`));
-  await set(recipientMessageRef, {
-    ...messageData,
-    id: recipientMessageRef.key
-  });
+  await update(ref(database), updates);
 };
 
 /**
@@ -279,26 +280,29 @@ export const subscribeMessages = (
 
   const updateMessages = () => {
     const allMessages: SocialMessage[] = [];
+    const seenIds = new Set();
 
-    // Combine messages from both threads
-    Object.values(thread1Data).forEach((msg: any) => {
-      allMessages.push(msg);
-    });
+    // Helper to add messages if not already seen
+    const addMessages = (data: any) => {
+      Object.values(data).forEach((msg: any) => {
+        if (!seenIds.has(msg.id)) {
+          allMessages.push(msg);
+          seenIds.add(msg.id);
+        }
+      });
+    };
 
-    Object.values(thread2Data).forEach((msg: any) => {
-      allMessages.push(msg);
-    });
+    addMessages(thread1Data);
+    addMessages(thread2Data);
 
-    // Sort by timestamp and remove duplicates
-    const uniqueMessages = Array.from(
-      new Map(allMessages.map(msg => [msg.id, msg])).values()
-    ).sort((a, b) => {
+    // Sort by timestamp
+    const sortedMessages = allMessages.sort((a, b) => {
       const timeA = new Date(a.timestamp).getTime();
       const timeB = new Date(b.timestamp).getTime();
       return timeA - timeB;
     });
 
-    callback(uniqueMessages);
+    callback(sortedMessages);
   };
 
   const unsubscribe1 = onValue(thread1Ref, (snapshot) => {
@@ -342,4 +346,27 @@ export const issueTask = async (
 
   // Also send a notification message
   await sendMessage(fromUid, toUid, `>> CONTRACT ISSUED: ${title}`);
+};
+
+/**
+ * Subscribe to tasks assigned to the user
+ */
+export const subscribeTasks = (
+  uid: string,
+  callback: (tasks: any[]) => void
+): (() => void) => {
+  const tasksRef = ref(database, `tasks/${uid}`);
+
+  const unsubscribe = onValue(tasksRef, (snapshot) => {
+    const tasks: any[] = [];
+    if (snapshot.exists()) {
+      const data = snapshot.val();
+      Object.values(data).forEach((task: any) => {
+        tasks.push(task);
+      });
+    }
+    callback(tasks);
+  });
+
+  return unsubscribe;
 };
