@@ -354,7 +354,7 @@ const App: React.FC = () => {
     if (!currentUserId) return;
 
     try {
-      await issueTask(currentUserId, toUserId, title, briefing, deadline);
+      await issueTask(currentUserId, toUserId, title, briefing, deadline, userProfile.codename);
     } catch (error: any) {
       alert(`Failed to issue task: ${error.message}`);
     }
@@ -484,8 +484,8 @@ const App: React.FC = () => {
                       onClick={() => handleExecuteMission(m.id)}
                       disabled={m.status === 'COMPLETED'}
                       className={`px-3 py-2 rounded text-xs font-mono font-bold flex items-center gap-2 whitespace-nowrap ${m.status === 'COMPLETED'
-                          ? 'bg-slate-700 text-slate-500 cursor-not-allowed'
-                          : 'bg-slate-900 text-green-500 border border-green-500/30 hover:bg-green-500 hover:text-black'
+                        ? 'bg-slate-700 text-slate-500 cursor-not-allowed'
+                        : 'bg-slate-900 text-green-500 border border-green-500/30 hover:bg-green-500 hover:text-black'
                         }`}
                     >
                       {m.status === 'COMPLETED' ? 'DONE' : 'EXECUTE'}

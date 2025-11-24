@@ -333,7 +333,8 @@ export const issueTask = async (
   toUid: string,
   title: string,
   briefing: string,
-  deadline: string
+  deadline: string,
+  issuerName: string
 ): Promise<void> => {
   const taskRef = push(ref(database, `tasks/${toUid}`));
   await set(taskRef, {
@@ -344,7 +345,7 @@ export const issueTask = async (
     startImage: 'https://placehold.co/400x300/1e293b/ef4444?text=PENDING+SCAN',
     status: 'PROPOSED',
     stars: 0,
-    issuer: fromUid,
+    issuer: issuerName,
     timestamp: serverTimestamp()
   });
 
