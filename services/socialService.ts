@@ -19,13 +19,14 @@ import { SocialUser, FriendRequest, SocialMessage } from '../types';
 /**
  * Send a friend request to another user
  */
-export const sendFriendRequest = async (fromUid: string, toUid: string): Promise<void> => {
+export const sendFriendRequest = async (fromUid: string, toUid: string, message?: string): Promise<void> => {
   const requestRef = push(ref(database, `friendRequests/${toUid}`));
   await set(requestRef, {
     id: requestRef.key,
     fromUid,
     timestamp: serverTimestamp(),
-    status: 'PENDING'
+    status: 'PENDING',
+    message: message || null
   });
 };
 
@@ -104,7 +105,8 @@ export const subscribeFriendRequests = (
               status: 'OFFLINE', // You can implement online presence tracking
               handlerId: userProfile.handlerId
             },
-            timestamp: request.timestamp
+            timestamp: request.timestamp,
+            message: request.message
           });
         }
       }

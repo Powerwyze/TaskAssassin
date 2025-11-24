@@ -70,6 +70,7 @@ export interface FriendRequest {
   id: string;
   fromUser: SocialUser;
   timestamp: string;
+  message?: string;
 }
 
 export interface SocialMessage {

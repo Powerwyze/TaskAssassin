@@ -10,7 +10,7 @@ interface SocialHubProps {
     requests: FriendRequest[];
     mockUsers: SocialUser[]; // Potential friends to search
     messages: SocialMessage[]; // Deprecated, kept for backward compatibility
-    onSendRequest: (userId: string) => void;
+    onSendRequest: (userId: string, message?: string) => void;
     onAcceptRequest: (requestId: string) => void;
     onDeclineRequest: (requestId: string) => void;
     onUnfriend: (userId: string) => void;
@@ -30,6 +30,7 @@ const SocialHub: React.FC<SocialHubProps> = ({
     const [selectedUser, setSelectedUser] = useState<SocialUser | null>(null);
     const [chatInput, setChatInput] = useState('');
     const [searchQuery, setSearchQuery] = useState('');
+    const [requestMessage, setRequestMessage] = useState('');
 
     // Chat messages for current conversation (real-time)
     const [chatMessages, setChatMessages] = useState<SocialMessage[]>([]);
@@ -131,24 +132,31 @@ const SocialHub: React.FC<SocialHubProps> = ({
             return (
                 <div className="space-y-3">
                     {requests.map(req => (
-                        <div key={req.id} className="bg-slate-800 border border-yellow-500/30 p-4 rounded flex items-center justify-between animate-in slide-in-from-right">
-                            <div className="flex items-center gap-3">
-                                <div className="w-10 h-10 bg-slate-700 rounded-full overflow-hidden">
-                                    {req.fromUser.avatar ? <img src={req.fromUser.avatar} className="w-full h-full object-cover" /> : <User className="p-2 w-full h-full text-slate-400" />}
+                        <div key={req.id} className="bg-slate-800 border border-yellow-500/30 p-4 rounded flex flex-col gap-2 animate-in slide-in-from-right">
+                            <div className="flex items-center justify-between w-full">
+                                <div className="flex items-center gap-3">
+                                    <div className="w-10 h-10 bg-slate-700 rounded-full overflow-hidden">
+                                        {req.fromUser.avatar ? <img src={req.fromUser.avatar} className="w-full h-full object-cover" /> : <User className="p-2 w-full h-full text-slate-400" />}
+                                    </div>
+                                    <div>
+                                        <div className="text-white font-mono font-bold text-sm">{req.fromUser.codename}</div>
+                                        <div className="text-[10px] text-yellow-500 font-mono">WANTS TO CONNECT</div>
+                                    </div>
                                 </div>
-                                <div>
-                                    <div className="text-white font-mono font-bold text-sm">{req.fromUser.codename}</div>
-                                    <div className="text-[10px] text-yellow-500 font-mono">WANTS TO CONNECT</div>
+                                <div className="flex items-center gap-2">
+                                    <button onClick={() => onAcceptRequest(req.id)} className="p-2 bg-green-600 text-black rounded hover:bg-green-500">
+                                        <Check className="w-4 h-4" />
+                                    </button>
+                                    <button onClick={() => onDeclineRequest(req.id)} className="p-2 bg-red-900/50 text-red-400 rounded hover:bg-red-900">
+                                        <X className="w-4 h-4" />
+                                    </button>
                                 </div>
                             </div>
-                            <div className="flex items-center gap-2">
-                                <button onClick={() => onAcceptRequest(req.id)} className="p-2 bg-green-600 text-black rounded hover:bg-green-500">
-                                    <Check className="w-4 h-4" />
-                                </button>
-                                <button onClick={() => onDeclineRequest(req.id)} className="p-2 bg-red-900/50 text-red-400 rounded hover:bg-red-900">
-                                    <X className="w-4 h-4" />
-                                </button>
-                            </div>
+                            {req.message && (
+                                <div className="bg-yellow-900/10 border border-yellow-500/20 p-2 rounded text-xs font-mono text-yellow-200/80 italic">
+                                    "{req.message}"
+                                </div>
+                            )}
                         </div>
                     ))}
                 </div>
@@ -193,9 +201,24 @@ const SocialHub: React.FC<SocialHubProps> = ({
                             {requests.find(r => r.fromUser.id === user.id) ? (
                                 <span className="text-[10px] text-yellow-500 font-mono">PENDING</span>
                             ) : (
-                                <button onClick={() => onSendRequest(user.id)} className="p-1.5 bg-slate-700 hover:bg-green-600 hover:text-black text-green-500 rounded transition-colors">
-                                    <UserPlus className="w-4 h-4" />
-                                </button>
+                                <div className="flex items-center gap-2">
+                                    <input
+                                        type="text"
+                                        placeholder="Add message..."
+                                        value={requestMessage}
+                                        onChange={(e) => setRequestMessage(e.target.value)}
+                                        className="bg-slate-900 border border-slate-700 rounded px-2 py-1 text-xs font-mono text-white focus:border-green-500 focus:outline-none w-32"
+                                    />
+                                    <button
+                                        onClick={() => {
+                                            onSendRequest(user.id, requestMessage);
+                                            setRequestMessage('');
+                                        }}
+                                        className="p-1.5 bg-slate-700 hover:bg-green-600 hover:text-black text-green-500 rounded transition-colors"
+                                    >
+                                        <UserPlus className="w-4 h-4" />
+                                    </button>
+                                </div>
                             )}
                         </div>
                     ))}
