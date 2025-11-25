@@ -738,7 +738,7 @@ const App: React.FC = () => {
             userProfile={userProfile}
             currentUserId={currentUserId || ''}
             friends={friends}
-            friendRequests={friendRequests}
+            requests={friendRequests}
             sentRequests={sentFriendRequests}
             messages={socialMessages}
             mockUsers={allUsers}

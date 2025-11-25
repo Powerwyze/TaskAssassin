@@ -23,7 +23,7 @@ type SocialView = 'LIST' | 'CHAT' | 'ISSUE_TASK';
 type ListTab = 'FRIENDS' | 'REQUESTS' | 'SEARCH';
 
 const SocialHub: React.FC<SocialHubProps> = ({
-    userProfile, currentUserId, friends, requests, sentRequests, mockUsers,
+    userProfile, currentUserId, friends = [], requests = [], sentRequests = [], mockUsers = [],
     onSendRequest, onAcceptRequest, onDeclineRequest, onUnfriend, onSendMessage, onIssueTask
 }) => {
     const [view, setView] = useState<SocialView>('LIST');
