@@ -704,6 +704,7 @@ const App: React.FC = () => {
         {view === 'EXECUTE_MISSION' && renderExecuteMission()}
         {view === 'DEBRIEF' && lastResult && (
           <MissionDossier
+            mission={missions.find(m => m.id === activeMissionId)}
             result={lastResult}
             onClose={() => {
               setLastResult(null);
