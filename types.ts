@@ -44,6 +44,7 @@ export interface UserProfile {
   lifeGoal: string;
   avatar?: string;
   hasSeenTutorial?: boolean;
+  customHandlerName?: string;
 }
 
 export interface ChatMessage {

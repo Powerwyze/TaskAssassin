@@ -61,6 +61,17 @@ const ProfileSettings: React.FC<ProfileSettingsProps> = ({ userProfile, handlers
         </div>
       </div>
 
+      <div>
+        <label className="block text-xs text-slate-500 font-mono mb-1">NAME YOUR COACH (OPTIONAL)</label>
+        <input
+          type="text"
+          value={userProfile.customHandlerName || ''}
+          onChange={(e) => onUpdateProfile({ ...userProfile, customHandlerName: e.target.value })}
+          className="w-full bg-slate-900 border border-slate-700 rounded p-2 text-white font-mono focus:border-green-500 focus:outline-none"
+          placeholder="e.g. Jarvis, Mom, Drill Sergeant..."
+        />
+      </div>
+
       {/* Life Goal Section */}
       <div className="space-y-2">
         <label className="block text-xs font-bold text-green-500 font-mono uppercase tracking-wider">
@@ -85,8 +96,8 @@ const ProfileSettings: React.FC<ProfileSettingsProps> = ({ userProfile, handlers
               key={h.id}
               onClick={() => onUpdateProfile({ ...userProfile, handlerId: h.id })}
               className={`w-full p-4 rounded border text-left transition-all relative group ${userProfile.handlerId === h.id
-                  ? 'bg-green-900/20 border-green-500'
-                  : 'bg-slate-800 border-slate-700 hover:bg-slate-700'
+                ? 'bg-green-900/20 border-green-500'
+                : 'bg-slate-800 border-slate-700 hover:bg-slate-700'
                 }`}
             >
               <div className="flex justify-between items-center mb-1">

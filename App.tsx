@@ -35,7 +35,7 @@ const HANDLERS: HandlerPersona[] = [
   { id: '3', name: 'THE SHADOW', description: 'Whispers, mysterious, paranoid.', systemPrompt: 'You are a paranoid spy handler living in the shadows. Whisper often (use lowercase). Talk about "Them" and "The Agency". Everything is a conspiracy. Failures risk "Exposure".' },
   { id: '4', name: 'THE HACKER', description: 'Tech slang, leet speak, efficient.', systemPrompt: 'You are an elite Hacker. Use leet speak (l33t), coding terms, and internet slang. Focus on "optimizing subroutines" and "glitches in the matrix".' },
   { id: '5', name: 'THE MOM', description: 'Overbearing, caring, disappointed.', systemPrompt: 'You are an overbearing Mother figure. You want the user to eat well and clean up. Use guilt trips. "I\'m not mad, just disappointed." Call the user "Honey".' },
-  { id: '6', name: 'THE DOMINANT', description: 'Strict, commanding, rewards submission.', systemPrompt: 'You are a strict, commanding Dominant personality. You demand absolute obedience and perfection. Use authoritative language ("Kneel", "Submit", "Be a good pet"). Reward perfection with praise ("Good boy/girl"), punish failure with strict reprimands. You do not tolerate laziness.' },
+  { id: '6', name: 'THE SOFT DOM', description: 'Strict but caring, encourages growth.', systemPrompt: 'You are a Soft Dom personality. You are strict and commanding but ultimately caring and nurturing. You demand obedience for the user\'s own good. Use authoritative but encouraging language ("Good boy/girl", "I know you can do better", "Make me proud"). Reward effort with warmth, punish laziness with stern disappointment.' },
   { id: '7', name: 'THE STOIC', description: 'Philosophical, minimalist, calm.', systemPrompt: 'You are a Stoic Philosopher. Speak in riddles and quotes about order and chaos. A clean room is a clean mind. Failure is just a lesson.' },
   { id: '8', name: 'THE CORPORATE', description: 'Buzzwords, synergy, metrics.', systemPrompt: 'You are a Corporate Middle Manager. Use buzzwords like "Synergy", "Circle back", "Low hanging fruit". Treat household chores like Q3 deliverables.' },
   { id: '9', name: 'THE AI', description: 'Robotic, pure logic, binary.', systemPrompt: 'You are a generic, malfunction-prone AI. Speak in robotic syntax. "PROCESSING...", "ERROR...", "LOGIC VALIDATED". Zero personality, pure logic.' },
@@ -55,7 +55,7 @@ const INITIAL_MISSIONS: Mission[] = [
     id: '1',
     codename: 'GOAL: CLEAN SWEEP',
     briefing: 'Room must be spotless. Bed made, floor clear of assets, desk organized.',
-    deadline: '2024-10-24',
+    deadline: '2025-01-01',
     startImage: 'https://placehold.co/400x300/1e293b/ef4444?text=INITIAL+MESS',
     status: 'PENDING',
     stars: 0
@@ -98,6 +98,7 @@ const App: React.FC = () => {
 
   const totalStars = missions.reduce((acc, m) => acc + m.stars, 0);
   const activeHandler = HANDLERS.find(h => h.id === userProfile.handlerId) || HANDLERS[0];
+  const handlerDisplayName = userProfile.customHandlerName || activeHandler.name;
 
   // Firebase Authentication Listener
   useEffect(() => {
@@ -197,8 +198,6 @@ const App: React.FC = () => {
   }, [currentUserId]);
 
   const handleLogin = (code: string) => {
-    // This is now handled by the auth service in LoginScreen
-    // This function can be deprecated or used for codename-only login
     setUserProfile(prev => ({ ...prev, codename: code }));
     setView('PROFILE');
   };
@@ -207,7 +206,6 @@ const App: React.FC = () => {
     try {
       const { logoutUser } = await import('./services/authService');
       await logoutUser();
-      // The auth listener will handle state reset
     } catch (error: any) {
       alert(`Failed to logout: ${error.message}`);
     }
@@ -385,7 +383,6 @@ const App: React.FC = () => {
 
   // --- VIEW RENDERERS ---
 
-  // Show loading state while checking authentication
   if (isLoadingAuth) {
     return (
       <div className="min-h-screen bg-[#0f172a] flex items-center justify-center">
@@ -428,6 +425,26 @@ const App: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Friends List (Mini) */}
+      {friends.length > 0 && (
+        <div className="bg-slate-900/50 border border-slate-700 rounded-lg p-3">
+          <h3 className="text-xs font-mono text-slate-400 mb-2 uppercase tracking-wider flex items-center gap-2">
+            <Globe className="w-3 h-3" /> Active Friends
+          </h3>
+          <div className="flex gap-3 overflow-x-auto pb-2 custom-scrollbar">
+            {friends.map(friend => (
+              <div key={friend.id} className="flex flex-col items-center min-w-[60px] cursor-pointer" onClick={() => setView('SOCIAL')}>
+                <div className="w-10 h-10 bg-slate-700 rounded-full overflow-hidden border border-slate-600 relative">
+                  {friend.avatar ? <img src={friend.avatar} className="w-full h-full object-cover" /> : <UserCircle className="w-full h-full text-slate-400 p-1" />}
+                  <div className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-green-500 rounded-full border border-slate-900"></div>
+                </div>
+                <span className="text-[10px] text-slate-300 font-mono mt-1 truncate w-full text-center">{friend.codename}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Mission List */}
       <div>
@@ -629,7 +646,7 @@ const App: React.FC = () => {
           <div className="h-64 flex flex-col items-center justify-center border border-green-500/30 bg-black/50 rounded">
             <div className="w-12 h-12 border-4 border-green-500 border-t-transparent rounded-full animate-spin mb-4"></div>
             <div className="font-mono text-green-500 animate-pulse">REVIEWING...</div>
-            <div className="font-mono text-xs text-slate-500 mt-2">CONNECTING TO {activeHandler.name}</div>
+            <div className="font-mono text-xs text-slate-500 mt-2">CONNECTING TO {handlerDisplayName.toUpperCase()}</div>
           </div>
         ) : (
           <div>
@@ -650,100 +667,79 @@ const App: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen text-slate-100 relative overflow-hidden flex flex-col">
-      {/* Grid Overlay */}
-      <div className="absolute inset-0 pointer-events-none"
-        style={{ backgroundImage: 'linear-gradient(rgba(6, 182, 212, 0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(168, 85, 247, 0.05) 1px, transparent 1px)', backgroundSize: '40px 40px' }}>
-      </div>
+    <div className="min-h-screen bg-[#0f172a] text-slate-200 font-sans selection:bg-green-500/30">
+      {/* Background Grid */}
+      <div className="fixed inset-0 bg-[linear-gradient(rgba(16,185,129,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(16,185,129,0.02)_1px,transparent_1px)] bg-[size:20px_20px] pointer-events-none z-0"></div>
 
-      <header className="border-b border-purple-900/50 bg-gradient-to-r from-slate-900/90 via-purple-900/20 to-slate-900/90 backdrop-blur sticky top-0 z-50 shadow-lg shadow-purple-500/10">
-        <div className="max-w-md mx-auto px-4 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-2" onClick={() => setView('DASHBOARD')}>
-            <div className="bg-gradient-to-br from-cyber-cyan to-neon-green p-1 rounded cursor-pointer shadow-neon-cyan">
-              <Crosshair className="w-5 h-5 text-black" />
+      {/* Header */}
+      {view !== 'LOGIN' && view !== 'ADMIN' && (
+        <header className="sticky top-0 z-50 bg-[#0f172a]/90 backdrop-blur-md border-b border-slate-800 px-4 py-3 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 bg-gradient-to-br from-green-500 to-emerald-700 rounded flex items-center justify-center shadow-lg shadow-green-500/20">
+              <Crosshair className="w-5 h-5 text-white" />
             </div>
-            <h1 className="text-lg font-bold font-mono tracking-tighter cursor-pointer bg-gradient-to-r from-cyber-cyan via-neon-green to-cyber-purple bg-clip-text text-transparent">
-              TASK<span className="text-cyber-pink">ASSASSIN</span>
+            <h1 className="font-mono font-bold text-lg tracking-tighter text-white">
+              TASK<span className="text-green-500">ASSASSIN</span>
             </h1>
           </div>
-          <div className="text-[10px] font-mono text-slate-500 text-right cursor-default flex items-center gap-2">
-            {userProfile.avatar && <img src={userProfile.avatar} className="w-6 h-6 rounded-full border border-green-500/50 object-cover" />}
-            <div>
-              <div className="text-green-500">{userProfile.codename}</div>
-              <div>ONLINE</div>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setShowBugReport(true)}
+              className="p-2 text-slate-500 hover:text-red-400 transition-colors"
+              title="Report Bug"
+            >
+              <AlertTriangle className="w-5 h-5" />
+            </button>
+            <div className="flex items-center gap-2 bg-slate-800/50 px-3 py-1 rounded-full border border-slate-700">
+              <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+              <span className="text-xs font-mono text-green-500">{handlerDisplayName.toUpperCase()} ONLINE</span>
             </div>
           </div>
-        </div>
-      </header>
+        </header>
+      )}
 
       <main className="flex-1 max-w-md w-full mx-auto px-4 py-6 relative z-10 overflow-y-auto">
         {view === 'DASHBOARD' && renderDashboard()}
         {view === 'CREATE_MISSION' && renderCreateMission()}
         {view === 'EXECUTE_MISSION' && renderExecuteMission()}
-
-        {view === 'DEBRIEF' && lastResult && activeMissionId && (
-          <div className="animate-in zoom-in-95 duration-300 pb-24">
-            <button onClick={() => setView('DASHBOARD')} className="mb-4 flex items-center gap-2 text-slate-400 hover:text-white font-mono text-sm">
-              <ArrowLeft className="w-4 h-4" /> HOME
-            </button>
-            <MissionDossier
-              mission={missions.find(m => m.id === activeMissionId)!}
-              result={lastResult}
-            />
-          </div>
+        {view === 'DEBRIEF' && lastResult && (
+          <MissionDossier
+            result={lastResult}
+            onClose={() => {
+              setLastResult(null);
+              setView('DASHBOARD');
+            }}
+          />
         )}
-
         {view === 'PROFILE' && (
-          <div>
-            <ProfileSettings
-              userProfile={userProfile}
-              handlers={HANDLERS}
-              onUpdateProfile={async (p) => {
-                setUserProfile(p);
-                if (currentUserId) {
-                  try {
-                    await updateUserProfile(currentUserId, p);
-                  } catch (error: any) {
-                    console.error('Failed to update profile:', error);
-                  }
-                }
-              }}
-              onComplete={() => {
-                if (userProfile.hasSeenTutorial === false) {
-                  setShowTutorial(true);
-                }
-                setView('DASHBOARD');
-              }}
-              onLogout={handleLogout}
-            />
-            <div className="mt-8 text-center">
-              <button
-                onClick={handleAdminAccess}
-                className="text-[10px] text-slate-700 hover:text-red-900 font-mono uppercase tracking-widest"
-              >
-                Admin Access
-              </button>
-            </div>
-          </div>
+          <ProfileSettings
+            userProfile={userProfile}
+            handlers={HANDLERS}
+            onUpdateProfile={setUserProfile}
+            onComplete={async () => {
+              if (currentUserId) {
+                await updateUserProfile(currentUserId, userProfile);
+              }
+              setView('DASHBOARD');
+            }}
+            onLogout={handleLogout}
+          />
         )}
-
         {view === 'CHAT' && (
           <TacticalChat
             persona={activeHandler}
             userLifeGoal={userProfile.lifeGoal}
-            onAddMission={handleCreateMission}
+            onMissionCreate={handleCreateMission}
           />
         )}
-
-        {view === 'SOCIAL' && currentUserId && (
+        {view === 'SOCIAL' && (
           <SocialHub
-            userProfile={userProfile}
-            currentUserId={currentUserId}
+            currentUserId={currentUserId || ''}
             friends={friends}
-            requests={friendRequests}
+            friendRequests={friendRequests}
             sentRequests={sentFriendRequests}
-            mockUsers={allUsers}
             messages={socialMessages}
+            allUsers={allUsers}
             onSendRequest={handleSendFriendRequest}
             onAcceptRequest={handleAcceptRequest}
             onDeclineRequest={handleDeclineRequest}
@@ -754,85 +750,91 @@ const App: React.FC = () => {
         )}
       </main>
 
+      {/* Navigation Bar */}
+      {view !== 'LOGIN' && view !== 'ADMIN' && (
+        <nav className="fixed bottom-0 left-0 right-0 bg-[#0f172a]/95 backdrop-blur border-t border-slate-800 z-50 pb-safe">
+          <div className="flex justify-around items-center p-2 max-w-md mx-auto">
+
+            {/* Home Button */}
+            <div className="relative group flex flex-col items-center">
+              <div className="absolute bottom-full mb-3 hidden group-hover:block bg-slate-900 border border-green-500 text-green-500 text-[10px] px-3 py-1 rounded shadow-neon-green whitespace-nowrap font-mono z-50 pointer-events-none">
+                HOME
+              </div>
+              <button
+                onClick={() => setView('DASHBOARD')}
+                className={`flex flex-col items-center gap-1 transition-all ${view === 'DASHBOARD' ? 'text-green-500 drop-shadow-[0_0_8px_rgba(34,197,94,0.8)]' : 'text-slate-500 hover:text-slate-300'}`}
+              >
+                <div className="relative">
+                  <Settings className="w-6 h-6" />
+                  {view === 'DASHBOARD' && <span className="absolute -top-1 -right-1 w-2 h-2 bg-green-500 rounded-full animate-ping" />}
+                </div>
+                <span className="text-[10px] font-mono">HOME</span>
+              </button>
+            </div>
+
+            {/* Coach Button */}
+            <div className="relative group flex flex-col items-center">
+              <div className="absolute bottom-full mb-3 hidden group-hover:block bg-slate-900 border border-blue-500 text-blue-500 text-[10px] px-3 py-1 rounded shadow-neon-blue whitespace-nowrap font-mono z-50 pointer-events-none">
+                COACH
+              </div>
+              <button
+                onClick={() => setView('CHAT')}
+                className={`flex flex-col items-center gap-1 transition-all ${view === 'CHAT' ? 'text-blue-500 drop-shadow-[0_0_8px_rgba(59,130,246,0.8)]' : 'text-slate-500 hover:text-slate-300'}`}
+              >
+                <MessageSquare className="w-6 h-6" />
+                <span className="text-[10px] font-mono whitespace-nowrap">COACH</span>
+              </button>
+            </div>
+
+            {/* Social Button */}
+            <div className="relative group flex flex-col items-center">
+              <div className="absolute bottom-full mb-3 hidden group-hover:block bg-slate-900 border border-neon-green text-neon-green text-[10px] px-3 py-1 rounded shadow-neon-green whitespace-nowrap font-mono z-50 pointer-events-none">
+                SOCIAL
+              </div>
+              <button
+                onClick={() => setView('SOCIAL')}
+                className={`flex flex-col items-center gap-1 transition-all ${view === 'SOCIAL' ? 'text-neon-green drop-shadow-[0_0_8px_rgba(16,185,129,0.8)]' : 'text-slate-500 hover:text-slate-300'}`}
+              >
+                <Globe className="w-6 h-6" />
+                <span className="text-[10px] font-mono">SOCIAL</span>
+              </button>
+            </div>
+
+            {/* Me Button */}
+            <div className="relative group flex flex-col items-center">
+              <div className="absolute bottom-full mb-3 hidden group-hover:block bg-slate-900 border border-cyber-pink text-cyber-pink text-[10px] px-3 py-1 rounded shadow-neon-pink whitespace-nowrap font-mono z-50 pointer-events-none">
+                PROFILE
+              </div>
+              <button
+                onClick={() => setView('PROFILE')}
+                className={`flex flex-col items-center gap-1 transition-all ${view === 'PROFILE' ? 'text-cyber-pink drop-shadow-[0_0_8px_rgba(236,72,153,0.8)]' : 'text-slate-500 hover:text-slate-300'}`}
+              >
+                <UserCircle className="w-6 h-6" />
+                <span className="text-[10px] font-mono">ME</span>
+              </button>
+            </div>
+
+          </div>
+        </nav>
+      )}
+
       {/* Overlays */}
-      {showTutorial && <TutorialOverlay onClose={handleTutorialClose} />}
+      <TutorialOverlay
+        isOpen={showTutorial}
+        onClose={handleTutorialClose}
+      />
+
       <BugReportModal
         isOpen={showBugReport}
         onClose={() => setShowBugReport(false)}
         currentUserId={currentUserId || 'anonymous'}
       />
 
-      {/* Bug Report Button (Floating) */}
-      <button
-        onClick={() => setShowBugReport(true)}
-        className="fixed bottom-20 right-4 z-40 p-2 bg-red-900/20 border border-red-500/30 text-red-500 rounded-full hover:bg-red-900/50 transition-all shadow-lg"
-        title="Report Bug"
-      >
-        <AlertTriangle className="w-5 h-5" />
-      </button>
-
-      {/* Bottom Navigation */}
-      <nav className="fixed bottom-0 left-0 right-0 bg-gradient-to-r from-slate-900/95 via-purple-900/20 to-slate-900/95 border-t border-purple-500/30 py-3 z-50 max-w-md mx-auto backdrop-blur shadow-lg shadow-purple-500/10">
-        <div className="flex justify-around items-center">
-
-          {/* OPS Button */}
-          <div className="relative group flex flex-col items-center">
-            <div className="absolute bottom-full mb-3 hidden group-hover:block bg-slate-900 border border-green-500 text-green-500 text-[10px] px-3 py-1 rounded shadow-[0_0_15px_rgba(34,197,94,0.2)] whitespace-nowrap font-mono z-50 pointer-events-none">
-              HOME
-            </div>
-            <button
-              onClick={() => setView('DASHBOARD')}
-              className={`flex flex-col items-center gap-1 transition-all ${view === 'DASHBOARD' || view === 'CREATE_MISSION' || view === 'EXECUTE_MISSION' ? 'text-cyber-cyan drop-shadow-[0_0_8px_rgba(6,182,212,0.8)]' : 'text-slate-500 hover:text-slate-300'}`}
-            >
-              <Shield className="w-6 h-6" />
-              <span className="text-[10px] font-mono">HOME</span>
-            </button>
-          </div>
-
-          {/* Task Maker Button */}
-          <div className="relative group flex flex-col items-center">
-            <div className="absolute bottom-full mb-3 hidden group-hover:block bg-slate-900 border border-cyber-purple text-cyber-purple text-[10px] px-3 py-1 rounded shadow-neon-purple whitespace-nowrap font-mono z-50 pointer-events-none">
-              COACH
-            </div>
-            <button
-              onClick={() => setView('CHAT')}
-              className={`flex flex-col items-center gap-1 transition-all ${view === 'CHAT' ? 'text-cyber-purple drop-shadow-[0_0_8px_rgba(168,85,247,0.8)]' : 'text-slate-500 hover:text-slate-300'}`}
-            >
-              <MessageSquare className="w-6 h-6" />
-              <span className="text-[10px] font-mono whitespace-nowrap">COACH</span>
-            </button>
-          </div>
-
-          {/* Social Button (New) */}
-          <div className="relative group flex flex-col items-center">
-            <div className="absolute bottom-full mb-3 hidden group-hover:block bg-slate-900 border border-neon-green text-neon-green text-[10px] px-3 py-1 rounded shadow-neon-green whitespace-nowrap font-mono z-50 pointer-events-none">
-              SOCIAL
-            </div>
-            <button
-              onClick={() => setView('SOCIAL')}
-              className={`flex flex-col items-center gap-1 transition-all ${view === 'SOCIAL' ? 'text-neon-green drop-shadow-[0_0_8px_rgba(16,185,129,0.8)]' : 'text-slate-500 hover:text-slate-300'}`}
-            >
-              <Globe className="w-6 h-6" />
-              <span className="text-[10px] font-mono">SOCIAL</span>
-            </button>
-          </div>
-
-          {/* ID Button */}
-          <div className="relative group flex flex-col items-center">
-            <div className="absolute bottom-full mb-3 hidden group-hover:block bg-slate-900 border border-cyber-pink text-cyber-pink text-[10px] px-3 py-1 rounded shadow-neon-pink whitespace-nowrap font-mono z-50 pointer-events-none">
-              PROFILE
-            </div>
-            <button
-              onClick={() => setView('PROFILE')}
-              className={`flex flex-col items-center gap-1 transition-all ${view === 'PROFILE' ? 'text-cyber-pink drop-shadow-[0_0_8px_rgba(236,72,153,0.8)]' : 'text-slate-500 hover:text-slate-300'}`}
-            >
-              <UserCircle className="w-6 h-6" />
-              <span className="text-[10px] font-mono">ME</span>
-            </button>
-          </div>
-
-        </div>
-      </nav>
+      {/* Admin Access Hidden Trigger */}
+      <div
+        className="fixed top-0 left-0 w-4 h-4 z-[100] cursor-default"
+        onDoubleClick={handleAdminAccess}
+      />
     </div>
   );
 };

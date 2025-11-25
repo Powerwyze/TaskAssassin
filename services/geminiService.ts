@@ -34,50 +34,55 @@ export const verifyIntel = async (
   handlerPrompt: string,
   userLifeGoal: string
 ): Promise<MissionResult> => {
-  
-  const cleanStart = startImageBase64.split(',')[1] || startImageBase64;
+
+  const isStartImageURL = startImageBase64.startsWith('http');
   const cleanEnd = endImageBase64.split(',')[1] || endImageBase64;
+
+  const parts: any[] = [
+    {
+      text: `ROLE: You are the user's Task Handler. 
+    
+    PERSONALITY PROTOCOL (CRITICAL): ${handlerPrompt}
+    
+    USER PROFILE (MOTIVATION): The user is trying to improve their life in this way: "${userLifeGoal}". Use this context to motivate, shame, or praise them according to your persona.
+    
+    MISSION CONTEXT: The Operative (user) has a mission: "${missionDescription}".
+    
+    INPUTS:
+    ${isStartImageURL ? '1. BEFORE IMAGE: Not available (Assigned Task). Evaluate based on description only.' : '1. BEFORE IMAGE (Start): The initial messy state or environment.'}
+    2. AFTER IMAGE (End): The submitted evidence of completion.
+
+    PROTOCOL:
+    1. **ANTI-CHEAT / LOCATION CHECK**: ${isStartImageURL ? 'Skip location check as there is no Before image.' : 'Compare the background, furniture, and layout of the BEFORE and AFTER images. If they are NOT the same physical location, FAIL the mission immediately.'}
+    
+    2. **COMPLETION CHECK**: Analyze the AFTER image. 
+       - Does it look clean, organized, and finished based on the mission description?
+       ${isStartImageURL ? '' : '- Compare it to the BEFORE image to ensure actual work was done (mess removed, bed made, etc.).'}
+       - If the AFTER image is still messy or doesn't match the goal, fail the mission.
+
+    3. **OUTPUT**: Your "debrief" must embody the personality described above completely.` },
+    {
+      inlineData: {
+        mimeType: 'image/jpeg',
+        data: cleanEnd
+      }
+    }
+  ];
+
+  if (!isStartImageURL) {
+    const cleanStart = startImageBase64.split(',')[1] || startImageBase64;
+    parts.push({
+      inlineData: {
+        mimeType: 'image/jpeg',
+        data: cleanStart
+      }
+    });
+  }
 
   const response = await ai.models.generateContent({
     model: 'gemini-2.0-flash',
     contents: {
-      parts: [
-        { text: `ROLE: You are the user's Task Handler. 
-        
-        PERSONALITY PROTOCOL (CRITICAL): ${handlerPrompt}
-        
-        USER PROFILE (MOTIVATION): The user is trying to improve their life in this way: "${userLifeGoal}". Use this context to motivate, shame, or praise them according to your persona.
-        
-        MISSION CONTEXT: The Operative (user) has a mission: "${missionDescription}".
-        
-        INPUTS:
-        1. BEFORE IMAGE (Start): The initial messy state or environment.
-        2. AFTER IMAGE (End): The submitted evidence of completion.
-
-        PROTOCOL:
-        1. **ANTI-CHEAT / LOCATION CHECK**: Compare the background, furniture, and layout of the BEFORE and AFTER images. 
-           - If they are NOT the same physical location, FAIL the mission immediately. 
-           - Accuse the user of trying to cheat with a fake photo.
-        
-        2. **COMPLETION CHECK**: Analyze the AFTER image. 
-           - Does it look clean, organized, and finished based on the mission description?
-           - Compare it to the BEFORE image to ensure actual work was done (mess removed, bed made, etc.).
-           - If the AFTER image is still messy or doesn't match the goal, fail the mission.
-
-        3. **OUTPUT**: Your "debrief" must embody the personality described above completely.` },
-        {
-          inlineData: {
-            mimeType: 'image/jpeg',
-            data: cleanStart
-          }
-        },
-        {
-          inlineData: {
-            mimeType: 'image/jpeg',
-            data: cleanEnd
-          }
-        }
-      ]
+      parts: parts
     },
     config: {
       responseMimeType: "application/json",
@@ -127,16 +132,17 @@ export const consultTacticalComputer = async (
   handlerPrompt: string,
   userLifeGoal: string
 ): Promise<{ response: string, suggestedMissions?: { title: string, briefing: string }[] }> => {
-  
+
   // Convert history objects to a transcript string
-  const transcript = history.map(msg => 
+  const transcript = history.map(msg =>
     `${msg.sender === 'USER' ? 'OPERATIVE' : 'HANDLER'}: ${msg.text}`
   ).join('\n');
 
   const result = await ai.models.generateContent({
     model: 'gemini-2.5-flash',
     contents: {
-      parts: [{ text: `ROLE: You are the user's Task Handler.
+      parts: [{
+        text: `ROLE: You are the user's Task Handler.
       
       PERSONALITY PROTOCOL: ${handlerPrompt}
 
@@ -166,8 +172,8 @@ export const consultTacticalComputer = async (
     try {
       return JSON.parse(result.text);
     } catch (e) {
-        console.error("Failed to parse chat response", e);
-        return { response: "Encryption error. Packet malformed." };
+      console.error("Failed to parse chat response", e);
+      return { response: "Encryption error. Packet malformed." };
     }
   }
   return { response: "Comm link unstable." };
