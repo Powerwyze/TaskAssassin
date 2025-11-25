@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { SocialUser, FriendRequest, SocialMessage, UserProfile } from '../types';
-import { Users, Search, UserPlus, MessageSquare, Shield, Check, X, Send, ArrowLeft, User } from 'lucide-react';
+import { SocialUser, FriendRequest, SocialMessage, UserProfile, SentFriendRequest } from '../types';
+import { Users, Search, UserPlus, MessageSquare, Shield, Check, X, Send, ArrowLeft, User, Clock } from 'lucide-react';
 import { subscribeMessages } from '../services/socialService';
 
 interface SocialHubProps {
@@ -8,6 +8,7 @@ interface SocialHubProps {
     currentUserId: string;
     friends: SocialUser[];
     requests: FriendRequest[];
+    sentRequests: SentFriendRequest[];
     mockUsers: SocialUser[]; // Potential friends to search
     messages: SocialMessage[]; // Deprecated, kept for backward compatibility
     onSendRequest: (userId: string, message?: string) => void;
@@ -19,14 +20,14 @@ interface SocialHubProps {
 }
 
 type SocialView = 'LIST' | 'CHAT' | 'ISSUE_TASK';
-type ListTab = 'ALLIES' | 'WIRE' | 'SEARCH';
+type ListTab = 'FRIENDS' | 'REQUESTS' | 'SEARCH';
 
 const SocialHub: React.FC<SocialHubProps> = ({
-    userProfile, currentUserId, friends, requests, mockUsers,
+    userProfile, currentUserId, friends, requests, sentRequests, mockUsers,
     onSendRequest, onAcceptRequest, onDeclineRequest, onUnfriend, onSendMessage, onIssueTask
 }) => {
     const [view, setView] = useState<SocialView>('LIST');
-    const [activeTab, setActiveTab] = useState<ListTab>('ALLIES');
+    const [activeTab, setActiveTab] = useState<ListTab>('FRIENDS');
     const [selectedUser, setSelectedUser] = useState<SocialUser | null>(null);
     const [chatInput, setChatInput] = useState('');
     const [searchQuery, setSearchQuery] = useState('');
@@ -91,31 +92,34 @@ const SocialHub: React.FC<SocialHubProps> = ({
     // --- RENDERERS ---
 
     const renderUserList = () => {
-        if (activeTab === 'ALLIES') {
+        if (activeTab === 'FRIENDS') {
             if (friends.length === 0) {
-                return <div className="p-8 text-center text-slate-500 font-mono text-sm">NO ALLIES IN NETWORK. SEARCH FOR AGENTS.</div>;
+                return <div className="p-8 text-center text-slate-500 font-mono text-sm">NO FRIENDS YET. SEARCH USERS.</div>;
             }
             return (
                 <div className="space-y-3">
                     {friends.map(friend => (
-                        <div key={friend.id} className="bg-slate-800 border border-slate-700 p-4 rounded flex items-center justify-between group animate-in slide-in-from-bottom-2">
+                        <div key={friend.id} className="bg-slate-800/50 border border-slate-700 p-3 rounded flex items-center justify-between">
                             <div className="flex items-center gap-3">
-                                <div className="w-10 h-10 bg-slate-700 rounded-full overflow-hidden border border-green-500/30">
+                                <div className="w-10 h-10 bg-slate-700 rounded-full overflow-hidden">
                                     {friend.avatar ? <img src={friend.avatar} className="w-full h-full object-cover" /> : <User className="p-2 w-full h-full text-slate-400" />}
                                 </div>
                                 <div>
-                                    <div className="text-green-400 font-mono font-bold">{friend.codename}</div>
-                                    <div className="text-[10px] text-slate-500 font-mono">STATUS: {friend.status}</div>
+                                    <div className="text-white font-mono font-bold">{friend.codename}</div>
+                                    <div className="text-[10px] text-green-500 font-mono flex items-center gap-1">
+                                        <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                                        ONLINE
+                                    </div>
                                 </div>
                             </div>
-                            <div className="flex items-center gap-2">
-                                <button onClick={() => handleChatOpen(friend)} className="p-2 hover:bg-slate-700 rounded text-slate-400 hover:text-green-500 transition-colors">
+                            <div className="flex gap-2">
+                                <button onClick={() => handleChatOpen(friend)} className="p-2 bg-slate-700 hover:bg-green-600 hover:text-black text-green-500 rounded transition-colors">
                                     <MessageSquare className="w-4 h-4" />
                                 </button>
-                                <button onClick={() => handleTaskOpen(friend)} className="p-2 hover:bg-slate-700 rounded text-slate-400 hover:text-yellow-500 transition-colors" title="Issue Task">
+                                <button onClick={() => handleTaskOpen(friend)} className="p-2 bg-slate-700 hover:bg-purple-600 hover:text-white text-purple-500 rounded transition-colors">
                                     <Shield className="w-4 h-4" />
                                 </button>
-                                <button onClick={() => onUnfriend(friend.id)} className="p-2 hover:bg-slate-700 rounded text-slate-400 hover:text-red-500 transition-colors">
+                                <button onClick={() => onUnfriend(friend.id)} className="p-2 bg-slate-700 hover:bg-red-600 hover:text-white text-red-500 rounded transition-colors">
                                     <X className="w-4 h-4" />
                                 </button>
                             </div>
@@ -125,35 +129,35 @@ const SocialHub: React.FC<SocialHubProps> = ({
             );
         }
 
-        if (activeTab === 'WIRE') {
+        if (activeTab === 'REQUESTS') {
             if (requests.length === 0) {
-                return <div className="p-8 text-center text-slate-500 font-mono text-sm">NO PENDING TRANSMISSIONS.</div>;
+                return <div className="p-8 text-center text-slate-500 font-mono text-sm">NO PENDING REQUESTS.</div>;
             }
             return (
                 <div className="space-y-3">
                     {requests.map(req => (
-                        <div key={req.id} className="bg-slate-800 border border-yellow-500/30 p-4 rounded flex flex-col gap-2 animate-in slide-in-from-right">
-                            <div className="flex items-center justify-between w-full">
+                        <div key={req.id} className="bg-slate-800/50 border border-yellow-500/30 p-3 rounded">
+                            <div className="flex items-center justify-between mb-2">
                                 <div className="flex items-center gap-3">
                                     <div className="w-10 h-10 bg-slate-700 rounded-full overflow-hidden">
                                         {req.fromUser.avatar ? <img src={req.fromUser.avatar} className="w-full h-full object-cover" /> : <User className="p-2 w-full h-full text-slate-400" />}
                                     </div>
                                     <div>
-                                        <div className="text-white font-mono font-bold text-sm">{req.fromUser.codename}</div>
-                                        <div className="text-[10px] text-yellow-500 font-mono">WANTS TO CONNECT</div>
+                                        <div className="text-white font-mono font-bold">{req.fromUser.codename}</div>
+                                        <div className="text-[10px] text-yellow-500 font-mono">INCOMING REQUEST</div>
                                     </div>
                                 </div>
-                                <div className="flex items-center gap-2">
+                                <div className="flex gap-2">
                                     <button onClick={() => onAcceptRequest(req.id)} className="p-2 bg-green-600 text-black rounded hover:bg-green-500">
                                         <Check className="w-4 h-4" />
                                     </button>
-                                    <button onClick={() => onDeclineRequest(req.id)} className="p-2 bg-red-900/50 text-red-400 rounded hover:bg-red-900">
+                                    <button onClick={() => onDeclineRequest(req.id)} className="p-2 bg-red-600 text-white rounded hover:bg-red-500">
                                         <X className="w-4 h-4" />
                                     </button>
                                 </div>
                             </div>
                             {req.message && (
-                                <div className="bg-yellow-900/10 border border-yellow-500/20 p-2 rounded text-xs font-mono text-yellow-200/80 italic">
+                                <div className="bg-slate-900/50 p-2 rounded text-xs text-slate-400 font-mono border-l-2 border-yellow-500">
                                     "{req.message}"
                                 </div>
                             )}
@@ -164,64 +168,73 @@ const SocialHub: React.FC<SocialHubProps> = ({
         }
 
         if (activeTab === 'SEARCH') {
-            // Filter users by search query (case-insensitive) and exclude current friends
             const filteredUsers = mockUsers.filter(u =>
-                !friends.find(f => f.id === u.id) &&
-                u.codename.toLowerCase().includes(searchQuery.toLowerCase())
+                u.codename.toLowerCase().includes(searchQuery.toLowerCase()) &&
+                !friends.find(f => f.id === u.id)
             );
 
             return (
-                <div className="space-y-3">
-                    <div className="relative mb-4">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+                <div className="space-y-4">
+                    <div className="relative">
+                        <Search className="absolute left-3 top-3 w-4 h-4 text-slate-500" />
                         <input
                             type="text"
-                            placeholder="SEARCH AGENT DB..."
+                            placeholder="Search by username..."
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
-                            className="w-full bg-slate-900 border border-slate-700 rounded py-2 pl-10 pr-4 text-sm font-mono text-white focus:outline-none focus:border-green-500"
+                            className="w-full bg-slate-900 border border-slate-700 rounded p-3 pl-10 text-white font-mono focus:border-green-500 focus:outline-none"
                         />
                     </div>
-                    <div className="text-[10px] text-slate-500 font-mono mb-2 uppercase">
-                        {searchQuery ? `Search Results (${filteredUsers.length})` : 'All Agents'}
+
+                    <div className="space-y-3">
+                        {filteredUsers.length === 0 && searchQuery && (
+                            <div className="text-center text-slate-500 font-mono text-xs">NO USERS FOUND.</div>
+                        )}
+                        {filteredUsers.map(user => {
+                            const isPending = requests.find(r => r.fromUser.id === user.id);
+                            const isSent = sentRequests.find(r => r.toUser.id === user.id);
+
+                            return (
+                                <div key={user.id} className="bg-slate-800/50 border border-slate-700 p-3 rounded flex items-center justify-between">
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-10 h-10 bg-slate-700 rounded-full overflow-hidden">
+                                            {user.avatar ? <img src={user.avatar} className="w-full h-full object-cover" /> : <User className="p-2 w-full h-full text-slate-400" />}
+                                        </div>
+                                        <div>
+                                            <div className="text-white font-mono font-bold">{user.codename}</div>
+                                            <div className="text-[10px] text-slate-500 font-mono">UNKNOWN USER</div>
+                                        </div>
+                                    </div>
+                                    {isPending ? (
+                                        <span className="text-[10px] text-yellow-500 font-mono bg-yellow-900/20 px-2 py-1 rounded border border-yellow-500/30">INCOMING REQUEST</span>
+                                    ) : isSent ? (
+                                        <span className="text-[10px] text-slate-400 font-mono bg-slate-700/50 px-2 py-1 rounded border border-slate-600 flex items-center gap-1">
+                                            <Clock className="w-3 h-3" /> REQUEST SENT
+                                        </span>
+                                    ) : (
+                                        <div className="flex items-center gap-2">
+                                            <input
+                                                type="text"
+                                                placeholder="Add message..."
+                                                value={requestMessage}
+                                                onChange={(e) => setRequestMessage(e.target.value)}
+                                                className="bg-slate-900 border border-slate-700 rounded px-2 py-1 text-xs font-mono text-white focus:border-green-500 focus:outline-none w-32"
+                                            />
+                                            <button
+                                                onClick={() => {
+                                                    onSendRequest(user.id, requestMessage);
+                                                    setRequestMessage('');
+                                                }}
+                                                className="p-1.5 bg-slate-700 hover:bg-green-600 hover:text-black text-green-500 rounded transition-colors"
+                                            >
+                                                <UserPlus className="w-4 h-4" />
+                                            </button>
+                                        </div>
+                                    )}
+                                </div>
+                            );
+                        })}
                     </div>
-                    {filteredUsers.length === 0 && searchQuery && (
-                        <div className="p-8 text-center text-slate-500 font-mono text-sm">
-                            NO AGENTS FOUND MATCHING "{searchQuery}"
-                        </div>
-                    )}
-                    {filteredUsers.map(user => (
-                        <div key={user.id} className="bg-slate-800/50 border border-slate-700 p-3 rounded flex items-center justify-between animate-in slide-in-from-bottom-1">
-                            <div className="flex items-center gap-3">
-                                <div className="w-8 h-8 bg-slate-700 rounded-full overflow-hidden">
-                                    {user.avatar ? <img src={user.avatar} className="w-full h-full object-cover" /> : <User className="p-2 w-full h-full text-slate-400" />}
-                                </div>
-                                <div className="text-slate-300 font-mono text-sm">{user.codename}</div>
-                            </div>
-                            {requests.find(r => r.fromUser.id === user.id) ? (
-                                <span className="text-[10px] text-yellow-500 font-mono">PENDING</span>
-                            ) : (
-                                <div className="flex items-center gap-2">
-                                    <input
-                                        type="text"
-                                        placeholder="Add message..."
-                                        value={requestMessage}
-                                        onChange={(e) => setRequestMessage(e.target.value)}
-                                        className="bg-slate-900 border border-slate-700 rounded px-2 py-1 text-xs font-mono text-white focus:border-green-500 focus:outline-none w-32"
-                                    />
-                                    <button
-                                        onClick={() => {
-                                            onSendRequest(user.id, requestMessage);
-                                            setRequestMessage('');
-                                        }}
-                                        className="p-1.5 bg-slate-700 hover:bg-green-600 hover:text-black text-green-500 rounded transition-colors"
-                                    >
-                                        <UserPlus className="w-4 h-4" />
-                                    </button>
-                                </div>
-                            )}
-                        </div>
-                    ))}
                 </div>
             );
         }
@@ -239,12 +252,12 @@ const SocialHub: React.FC<SocialHubProps> = ({
                     </div>
                     <div>
                         <div className="text-green-500 font-mono font-bold">{selectedUser.codename}</div>
-                        <div className="text-[10px] text-slate-500 font-mono">SECURE CONNECTION</div>
+                        <div className="text-[10px] text-slate-500 font-mono">CONNECTED</div>
                     </div>
                 </div>
 
                 <div className="flex-1 overflow-y-auto space-y-3 p-2 custom-scrollbar">
-                    {chatMessages.length === 0 && <div className="text-center text-slate-600 font-mono text-xs mt-10">ENCRYPTION KEYS EXCHANGED. START TYPING.</div>}
+                    {chatMessages.length === 0 && <div className="text-center text-slate-600 font-mono text-xs mt-10">CONNECTED. START TYPING.</div>}
                     {chatMessages.map(msg => {
                         const isMe = msg.fromId === currentUserId;
                         return (
@@ -280,8 +293,8 @@ const SocialHub: React.FC<SocialHubProps> = ({
             return (
                 <div className="h-full flex flex-col items-center justify-center pb-24 animate-in zoom-in">
                     <Check className="w-16 h-16 text-green-500 mb-4 animate-bounce" />
-                    <h3 className="text-xl font-mono text-white font-bold">TRANSMISSION SENT</h3>
-                    <p className="text-slate-500 font-mono text-sm mt-2">Contract issued to {selectedUser.codename}</p>
+                    <h3 className="text-xl font-mono text-white font-bold">TASK SENT</h3>
+                    <p className="text-slate-500 font-mono text-sm mt-2">Task sent to {selectedUser.codename}</p>
                 </div>
             );
         }
@@ -289,24 +302,26 @@ const SocialHub: React.FC<SocialHubProps> = ({
         return (
             <div className="pb-24 animate-in slide-in-from-right">
                 <button onClick={() => setView('LIST')} className="flex items-center gap-2 text-slate-400 hover:text-white font-mono text-sm mb-6">
-                    <ArrowLeft className="w-4 h-4" /> CANCEL TRANSMISSION
+                    <ArrowLeft className="w-4 h-4" /> CANCEL
                 </button>
 
-                <h2 className="text-lg font-mono text-white mb-1">ISSUE CONTRACT</h2>
-                <p className="text-xs text-slate-500 font-mono mb-6">TARGET AGENT: <span className="text-green-500">{selectedUser.codename}</span></p>
+                <h2 className="text-lg font-mono text-white mb-1">SEND TASK</h2>
+                <p className="text-xs text-slate-500 font-mono mb-6">TO USER: <span className="text-green-500">{selectedUser.codename}</span></p>
 
                 <div className="space-y-4">
                     <div>
-                        <label className="block text-xs text-green-500 font-mono mb-1">MISSION CODENAME</label>
+                        <label className="block text-xs text-green-500 font-mono mb-1">TASK TITLE</label>
                         <input
+                            type="text"
                             value={taskTitle}
-                            onChange={e => setTaskTitle(e.target.value.toUpperCase())}
+                            onChange={e => setTaskTitle(e.target.value)}
                             className="w-full bg-slate-900 border border-slate-700 rounded p-3 text-white font-mono focus:border-green-500 focus:outline-none uppercase"
-                            placeholder="OPERATION: DISHES"
+                            placeholder="e.g. CLEAN KITCHEN"
                         />
                     </div>
+
                     <div>
-                        <label className="block text-xs text-green-500 font-mono mb-1">DEADLINE</label>
+                        <label className="block text-xs text-green-500 font-mono mb-1">DUE DATE</label>
                         <input
                             type="date"
                             value={taskDeadline}
@@ -314,26 +329,23 @@ const SocialHub: React.FC<SocialHubProps> = ({
                             className="w-full bg-slate-900 border border-slate-700 rounded p-3 text-white font-mono focus:border-green-500 focus:outline-none"
                         />
                     </div>
+
                     <div>
-                        <label className="block text-xs text-green-500 font-mono mb-1">BRIEFING / REQUIREMENTS</label>
+                        <label className="block text-xs text-green-500 font-mono mb-1">DESCRIPTION</label>
                         <textarea
                             value={taskBriefing}
                             onChange={e => setTaskBriefing(e.target.value)}
-                            className="w-full bg-slate-900 border border-slate-700 rounded p-3 text-white font-mono focus:border-green-500 focus:outline-none h-32"
-                            placeholder="Detail the requirements for success..."
+                            className="w-full bg-slate-900 border border-slate-700 rounded p-3 text-white font-mono focus:border-green-500 focus:outline-none h-24"
+                            placeholder="Describe exactly what needs to be done..."
                         />
-                    </div>
-
-                    <div className="bg-yellow-900/20 border border-yellow-500/30 p-4 rounded text-xs font-mono text-yellow-500/80">
-                        WARNING: ISSUING TASKS CONSUMES SOCIAL CREDIT. ENSURE AGENT IS CAPABLE.
                     </div>
 
                     <button
                         onClick={handleIssueTask}
                         disabled={!taskTitle || !taskBriefing || !taskDeadline}
-                        className="w-full bg-green-600 hover:bg-green-500 disabled:opacity-50 disabled:cursor-not-allowed text-black font-bold font-mono py-4 rounded flex items-center justify-center gap-2 mt-4"
+                        className="w-full bg-green-600 hover:bg-green-500 disabled:bg-slate-700 disabled:text-slate-500 text-black font-bold font-mono py-4 rounded mt-4"
                     >
-                        <Shield className="w-5 h-5" /> AUTHORIZE CONTRACT
+                        SEND TASK
                     </button>
                 </div>
             </div>
@@ -341,25 +353,31 @@ const SocialHub: React.FC<SocialHubProps> = ({
     }
 
     return (
-        <div className="pb-24 animate-in fade-in">
-            {/* TABS */}
+        <div className="animate-in slide-in-from-bottom duration-500 pb-24">
+            <div className="flex items-center gap-4 mb-6">
+                <h2 className="text-xl font-mono text-white">SOCIAL</h2>
+            </div>
+
+            {/* Tabs */}
             <div className="flex border-b border-slate-700 mb-4">
-                {(['ALLIES', 'WIRE', 'SEARCH'] as ListTab[]).map(tab => (
-                    <button
-                        key={tab}
-                        onClick={() => setActiveTab(tab)}
-                        className={`flex-1 py-3 font-mono text-xs font-bold transition-colors relative ${activeTab === tab ? 'text-green-500' : 'text-slate-500 hover:text-slate-300'
-                            }`}
-                    >
-                        {tab}
-                        {tab === 'WIRE' && requests.length > 0 && (
-                            <span className="absolute top-2 right-4 w-2 h-2 bg-yellow-500 rounded-full animate-pulse"></span>
-                        )}
-                        {activeTab === tab && (
-                            <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-green-500"></div>
-                        )}
-                    </button>
-                ))}
+                <button
+                    onClick={() => setActiveTab('FRIENDS')}
+                    className={`flex-1 py-2 text-xs font-mono font-bold ${activeTab === 'FRIENDS' ? 'text-green-500 border-b-2 border-green-500' : 'text-slate-500'}`}
+                >
+                    FRIENDS ({friends.length})
+                </button>
+                <button
+                    onClick={() => setActiveTab('REQUESTS')}
+                    className={`flex-1 py-2 text-xs font-mono font-bold ${activeTab === 'REQUESTS' ? 'text-green-500 border-b-2 border-green-500' : 'text-slate-500'}`}
+                >
+                    REQUESTS ({requests.length})
+                </button>
+                <button
+                    onClick={() => setActiveTab('SEARCH')}
+                    className={`flex-1 py-2 text-xs font-mono font-bold ${activeTab === 'SEARCH' ? 'text-green-500 border-b-2 border-green-500' : 'text-slate-500'}`}
+                >
+                    SEARCH
+                </button>
             </div>
 
             {renderUserList()}

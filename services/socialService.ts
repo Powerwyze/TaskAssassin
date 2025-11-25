@@ -12,7 +12,7 @@ import {
   update
 } from 'firebase/database';
 import { database } from './firebaseConfig';
-import { SocialUser, FriendRequest, SocialMessage } from '../types';
+import { SocialUser, FriendRequest, SocialMessage, SentFriendRequest } from '../types';
 
 // ==================== FRIEND REQUESTS ====================
 
@@ -21,13 +21,24 @@ import { SocialUser, FriendRequest, SocialMessage } from '../types';
  */
 export const sendFriendRequest = async (fromUid: string, toUid: string, message?: string): Promise<void> => {
   const requestRef = push(ref(database, `friendRequests/${toUid}`));
-  await set(requestRef, {
-    id: requestRef.key,
+  const requestId = requestRef.key;
+
+  const requestData = {
+    id: requestId,
     fromUid,
     timestamp: serverTimestamp(),
     status: 'PENDING',
     message: message || null
-  });
+  };
+
+  const updates: { [key: string]: any } = {};
+  updates[`friendRequests/${toUid}/${requestId}`] = requestData;
+  updates[`sentFriendRequests/${fromUid}/${requestId}`] = {
+    ...requestData,
+    toUid
+  };
+
+  await update(ref(database), updates);
 };
 
 /**
@@ -49,6 +60,7 @@ export const acceptFriendRequest = async (
 
   // Remove the friend request
   updates[`friendRequests/${currentUid}/${requestId}`] = null;
+  updates[`sentFriendRequests/${fromUid}/${requestId}`] = null;
 
   await update(ref(database), updates);
 };
@@ -58,9 +70,14 @@ export const acceptFriendRequest = async (
  */
 export const declineFriendRequest = async (
   currentUid: string,
-  requestId: string
+  requestId: string,
+  fromUid: string
 ): Promise<void> => {
-  await remove(ref(database, `friendRequests/${currentUid}/${requestId}`));
+  const updates: { [key: string]: any } = {};
+  updates[`friendRequests/${currentUid}/${requestId}`] = null;
+  updates[`sentFriendRequests/${fromUid}/${requestId}`] = null;
+
+  await update(ref(database), updates);
 };
 
 /**
@@ -102,7 +119,7 @@ export const subscribeFriendRequests = (
               id: request.fromUid,
               codename: userProfile.codename,
               avatar: userProfile.avatar,
-              status: 'OFFLINE', // You can implement online presence tracking
+              status: 'OFFLINE', // Default
               handlerId: userProfile.handlerId
             },
             timestamp: request.timestamp,
@@ -118,217 +135,108 @@ export const subscribeFriendRequests = (
   return unsubscribe;
 };
 
-// ==================== FRIENDS ====================
-
 /**
- * Subscribe to friends list in real-time
+ * Subscribe to sent friend requests in real-time
  */
-export const subscribeFriends = (
+export const subscribeSentFriendRequests = (
   uid: string,
-  callback: (friends: SocialUser[]) => void
+  callback: (requests: SentFriendRequest[]) => void
 ): (() => void) => {
-  const friendsRef = ref(database, `friends/${uid}`);
+  const requestsRef = ref(database, `sentFriendRequests/${uid}`);
 
-  const unsubscribe = onValue(friendsRef, async (snapshot) => {
-    const friends: SocialUser[] = [];
+  const unsubscribe = onValue(requestsRef, async (snapshot) => {
+    const requests: SentFriendRequest[] = [];
 
     if (snapshot.exists()) {
       const data = snapshot.val();
 
-      // Fetch user details for each friend
-      for (const friendUid in data) {
-        const userSnapshot = await get(ref(database, `users/${friendUid}/profile`));
+      for (const requestId in data) {
+        const request = data[requestId];
+        // We need to fetch the 'toUser' profile
+        const userSnapshot = await get(ref(database, `users/${request.toUid}/profile`));
 
         if (userSnapshot.exists()) {
           const userProfile = userSnapshot.val();
-          friends.push({
-            id: friendUid,
-            codename: userProfile.codename,
-            avatar: userProfile.avatar,
-            status: 'OFFLINE', // You can implement online presence tracking
-            handlerId: userProfile.handlerId
+          requests.push({
+            id: requestId,
+            toUser: {
+              id: request.toUid,
+              codename: userProfile.codename,
+              avatar: userProfile.avatar,
+              status: 'OFFLINE', // Default
+              handlerId: userProfile.handlerId
+            },
+            timestamp: request.timestamp,
+            message: request.message
           });
         }
       }
     }
 
-    callback(friends);
+    callback(requests);
   });
 
   return unsubscribe;
 };
 
-/**
- * Search for users by codename
- */
-export const searchUsers = async (searchTerm: string, currentUid: string): Promise<SocialUser[]> => {
-  const usersRef = ref(database, 'users');
-  const snapshot = await get(usersRef);
-  const users: SocialUser[] = [];
-
-  if (snapshot.exists()) {
-    const data = snapshot.val();
-
-    for (const uid in data) {
-      if (uid === currentUid) continue; // Skip current user
-
-      const profile = data[uid].profile;
-      if (profile && profile.codename.toLowerCase().includes(searchTerm.toLowerCase())) {
-        users.push({
-          id: uid,
-          codename: profile.codename,
-          avatar: profile.avatar,
-          status: 'OFFLINE',
-          handlerId: profile.handlerId
-        });
-      }
-    }
-  }
-
-  return users;
-};
+// ==================== MESSAGING ====================
 
 /**
- * Get all users (for recommendations)
+ * Send a message to a friend
  */
-export const getAllUsers = async (currentUid: string, limit: number = 10): Promise<SocialUser[]> => {
-  try {
-    console.log('🔍 Fetching all users from Firebase...');
-    const usersRef = ref(database, 'users');
-    const snapshot = await get(usersRef);
-    const users: SocialUser[] = [];
-
-    if (snapshot.exists()) {
-      const data = snapshot.val();
-      console.log('✅ Users data retrieved:', Object.keys(data).length, 'users found');
-      let count = 0;
-
-      for (const uid in data) {
-        if (uid === currentUid) continue; // Skip current user
-        if (count >= limit) break;
-
-        const profile = data[uid].profile;
-        if (profile && profile.codename) {
-          console.log('👤 Found user:', profile.codename);
-          users.push({
-            id: uid,
-            codename: profile.codename,
-            avatar: profile.avatar,
-            status: 'OFFLINE',
-            handlerId: profile.handlerId
-          });
-          count++;
-        }
-      }
-      console.log('📋 Returning', users.length, 'users');
-    } else {
-      console.log('⚠️ No users found in database');
-    }
-
-    return users;
-  } catch (error) {
-    console.error('❌ Error fetching users:', error);
-    return [];
-  }
-};
-
-// ==================== MESSAGES ====================
-
-/**
- * Send a message to another user
- */
-/**
- * Send a message to another user
- */
-export const sendMessage = async (
-  fromUid: string,
-  toUid: string,
-  text: string
-): Promise<void> => {
-  // Generate a unique ID for the message
-  const tempRef = push(ref(database, `messages/${fromUid}_${toUid}`));
-  const messageId = tempRef.key;
-
-  const messageData = {
-    id: messageId,
-    fromId: fromUid,
-    toId: toUid,
+export const sendMessage = async (fromUid: string, toUid: string, text: string): Promise<void> => {
+  const messageRef = push(ref(database, 'messages'));
+  await set(messageRef, {
+    id: messageRef.key,
+    fromUid,
+    toUid,
     text,
     timestamp: serverTimestamp()
-  };
-
-  // Create updates object for atomic update
-  const updates: { [key: string]: any } = {};
-  updates[`messages/${fromUid}_${toUid}/${messageId}`] = messageData;
-  updates[`messages/${toUid}_${fromUid}/${messageId}`] = messageData;
-
-  await update(ref(database), updates);
+  });
 };
 
 /**
- * Subscribe to messages between two users in real-time
+ * Subscribe to messages between two users
  */
 export const subscribeMessages = (
-  uid1: string,
-  uid2: string,
+  currentUid: string,
+  otherUid: string,
   callback: (messages: SocialMessage[]) => void
 ): (() => void) => {
-  const thread1Ref = ref(database, `messages/${uid1}_${uid2}`);
-  const thread2Ref = ref(database, `messages/${uid2}_${uid1}`);
+  const messagesRef = query(
+    ref(database, 'messages'),
+    orderByChild('timestamp')
+  );
 
-  const messages: SocialMessage[] = [];
-  let thread1Data: any = {};
-  let thread2Data: any = {};
-
-  const updateMessages = () => {
-    const allMessages: SocialMessage[] = [];
-    const seenIds = new Set();
-
-    // Helper to add messages if not already seen
-    const addMessages = (data: any) => {
-      Object.values(data).forEach((msg: any) => {
-        if (!seenIds.has(msg.id)) {
-          allMessages.push(msg);
-          seenIds.add(msg.id);
+  const unsubscribe = onValue(messagesRef, (snapshot) => {
+    const messages: SocialMessage[] = [];
+    if (snapshot.exists()) {
+      snapshot.forEach((childSnapshot) => {
+        const msg = childSnapshot.val();
+        if (
+          (msg.fromUid === currentUid && msg.toUid === otherUid) ||
+          (msg.fromUid === otherUid && msg.toUid === currentUid)
+        ) {
+          messages.push({
+            id: msg.id,
+            fromId: msg.fromUid,
+            toId: msg.toUid,
+            text: msg.text,
+            timestamp: msg.timestamp
+          });
         }
       });
-    };
-
-    addMessages(thread1Data);
-    addMessages(thread2Data);
-
-    // Sort by timestamp
-    const sortedMessages = allMessages.sort((a, b) => {
-      const timeA = new Date(a.timestamp).getTime();
-      const timeB = new Date(b.timestamp).getTime();
-      return timeA - timeB;
-    });
-
-    callback(sortedMessages);
-  };
-
-  const unsubscribe1 = onValue(thread1Ref, (snapshot) => {
-    thread1Data = snapshot.exists() ? snapshot.val() : {};
-    updateMessages();
+    }
+    callback(messages);
   });
 
-  const unsubscribe2 = onValue(thread2Ref, (snapshot) => {
-    thread2Data = snapshot.exists() ? snapshot.val() : {};
-    updateMessages();
-  });
-
-  // Return function to unsubscribe from both listeners
-  return () => {
-    unsubscribe1();
-    unsubscribe2();
-  };
+  return unsubscribe;
 };
 
+// ==================== TASK ASSIGNMENT ====================
+
 /**
- * Issue a task to another user
- */
-/**
- * Issue a task to another user
+ * Issue a task to a friend
  */
 export const issueTask = async (
   fromUid: string,
@@ -341,22 +249,20 @@ export const issueTask = async (
   const taskRef = push(ref(database, `tasks/${toUid}`));
   await set(taskRef, {
     id: taskRef.key,
-    codename: title.toUpperCase(),
+    codename: title,
     briefing,
     deadline,
-    startImage: 'https://placehold.co/400x300/1e293b/ef4444?text=PENDING+SCAN',
+    startImage: 'https://placehold.co/400x300/1e293b/ef4444?text=ASSIGNED+TASK',
     status: 'PROPOSED',
     stars: 0,
     issuer: issuerName,
+    fromUid,
     timestamp: serverTimestamp()
   });
-
-  // Also send a notification message
-  await sendMessage(fromUid, toUid, `>> CONTRACT ISSUED: ${title} (DUE: ${deadline})`);
 };
 
 /**
- * Subscribe to tasks assigned to the user
+ * Subscribe to assigned tasks
  */
 export const subscribeTasks = (
   uid: string,
@@ -367,9 +273,8 @@ export const subscribeTasks = (
   const unsubscribe = onValue(tasksRef, (snapshot) => {
     const tasks: any[] = [];
     if (snapshot.exists()) {
-      const data = snapshot.val();
-      Object.values(data).forEach((task: any) => {
-        tasks.push(task);
+      snapshot.forEach((childSnapshot) => {
+        tasks.push(childSnapshot.val());
       });
     }
     callback(tasks);
@@ -378,29 +283,34 @@ export const subscribeTasks = (
   return unsubscribe;
 };
 
-// ==================== ADMIN / BUGS ====================
+// ==================== USER DISCOVERY ====================
 
-export const reportBug = async (uid: string, description: string): Promise<void> => {
-  const bugRef = push(ref(database, 'bugReports'));
-  await set(bugRef, {
-    id: bugRef.key,
-    reporterId: uid,
-    description,
-    timestamp: serverTimestamp(),
-    status: 'OPEN'
-  });
-};
+/**
+ * Get all users (for search/recommendations)
+ * In a real app, this should be paginated and filtered server-side
+ */
+export const getAllUsers = async (currentUid: string, limit: number = 20): Promise<SocialUser[]> => {
+  const usersRef = query(ref(database, 'users'), orderByChild('profile/codename'));
+  const snapshot = await get(usersRef);
+  const users: SocialUser[] = [];
 
-export const subscribeBugReports = (callback: (reports: any[]) => void): (() => void) => {
-  const bugsRef = ref(database, 'bugReports');
-  return onValue(bugsRef, (snapshot) => {
-    const reports: any[] = [];
-    if (snapshot.exists()) {
-      const data = snapshot.val();
-      Object.values(data).forEach((report: any) => {
-        reports.push(report);
-      });
-    }
-    callback(reports);
-  });
+  if (snapshot.exists()) {
+    snapshot.forEach((childSnapshot) => {
+      const uid = childSnapshot.key;
+      const profile = childSnapshot.val().profile;
+
+      if (uid !== currentUid && profile) {
+        users.push({
+          id: uid!,
+          codename: profile.codename,
+          avatar: profile.avatar,
+          status: 'OFFLINE', // Default
+          handlerId: profile.handlerId
+        });
+      }
+    });
+  }
+
+  // Simple client-side limit for now
+  return users.slice(0, limit);
 };
