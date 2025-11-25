@@ -1,3 +1,4 @@
+
 import React, { useRef, useState, useEffect } from 'react';
 import { Camera, RefreshCw, Power } from 'lucide-react';
 import { CameraCapture } from '../types';
@@ -12,11 +13,15 @@ const SpyCamera: React.FC<SpyCameraProps> = ({ onCapture, label }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [isActive, setIsActive] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [facingMode, setFacingMode] = useState<'user' | 'environment'>('environment');
 
   const startCamera = async () => {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ 
-        video: { facingMode: 'environment' } 
+      // Stop any existing stream first
+      stopCamera();
+
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: facingMode }
       });
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
@@ -24,6 +29,7 @@ const SpyCamera: React.FC<SpyCameraProps> = ({ onCapture, label }) => {
         setError(null);
       }
     } catch (err) {
+      console.error("Camera Error:", err);
       setError("Camera Access Denied. Check permissions.");
     }
   };
@@ -40,7 +46,11 @@ const SpyCamera: React.FC<SpyCameraProps> = ({ onCapture, label }) => {
   useEffect(() => {
     startCamera();
     return () => stopCamera();
-  }, []);
+  }, [facingMode]);
+
+  const toggleCamera = () => {
+    setFacingMode(prev => prev === 'user' ? 'environment' : 'user');
+  };
 
   const captureImage = () => {
     if (videoRef.current && canvasRef.current) {
@@ -54,20 +64,27 @@ const SpyCamera: React.FC<SpyCameraProps> = ({ onCapture, label }) => {
         canvas.height = video.videoHeight;
 
         // Draw video frame
+        // If using front camera, we might want to mirror the image, but for now let's keep it simple
+        if (facingMode === 'user') {
+          context.translate(canvas.width, 0);
+          context.scale(-1, 1);
+        }
         context.drawImage(video, 0, 0, canvas.width, canvas.height);
+        // Reset transform
+        context.setTransform(1, 0, 0, 1, 0, 0);
 
         // ADD TIMECODE OVERLAY
         const now = new Date();
         const timeString = now.toISOString().replace('T', ' ').substring(0, 19);
-        
+
         context.font = '20px "Share Tech Mono", monospace';
         context.fillStyle = '#00ff00'; // Hacker green
         context.shadowColor = 'black';
         context.shadowBlur = 4;
-        
+
         // Bottom left timestamp
         context.fillText(`REC: ${timeString}`, 20, canvas.height - 20);
-        
+
         // Top right label
         context.fillText(`// ${label.toUpperCase()}`, 20, 40);
 
@@ -107,34 +124,46 @@ const SpyCamera: React.FC<SpyCameraProps> = ({ onCapture, label }) => {
           <div className="animate-pulse text-green-500 font-mono">INITIALIZING OPTICS...</div>
         </div>
       )}
-      
-      <video 
-        ref={videoRef} 
-        autoPlay 
-        playsInline 
+
+      <video
+        ref={videoRef}
+        autoPlay
+        playsInline
         muted
-        className="w-full h-64 object-cover opacity-80"
+        className={`w-full h-64 object-cover opacity-80 ${facingMode === 'user' ? 'scale-x-[-1]' : ''}`}
       />
       <canvas ref={canvasRef} className="hidden" />
 
       {/* HUD Overlay */}
       <div className="absolute inset-0 pointer-events-none border-2 border-green-500/20 m-2 rounded">
-        <div className="absolute top-2 left-2 text-xs text-green-500 font-mono">CAM_01</div>
+        <div className="absolute top-2 left-2 text-xs text-green-500 font-mono">CAM_01 [{facingMode.toUpperCase()}]</div>
         <div className="absolute top-2 right-2 flex items-center gap-2">
-           <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
-           <span className="text-xs text-red-500 font-bold font-mono">LIVE</span>
+          <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
+          <span className="text-xs text-red-500 font-bold font-mono">LIVE</span>
         </div>
         {/* Crosshair center */}
         <div className="absolute top-1/2 left-1/2 w-8 h-8 -translate-x-1/2 -translate-y-1/2 border border-green-500/30"></div>
       </div>
 
-      <div className="absolute bottom-4 left-0 right-0 flex justify-center z-20 pointer-events-auto">
-        <button 
+      <div className="absolute bottom-4 left-0 right-0 flex justify-center items-center gap-6 z-20 pointer-events-auto">
+        <button
+          onClick={toggleCamera}
+          className="p-3 rounded-full bg-slate-800/80 text-white hover:bg-slate-700 backdrop-blur border border-slate-600 transition-all active:scale-95"
+          title="Switch Camera"
+        >
+          <RefreshCw className="w-6 h-6" />
+        </button>
+
+        <button
           onClick={captureImage}
           className="w-16 h-16 rounded-full border-4 border-white/20 bg-red-600 hover:bg-red-500 active:scale-95 transition-all flex items-center justify-center shadow-lg ring-2 ring-red-500/50"
         >
           <Camera className="w-8 h-8 text-white" />
         </button>
+
+        {/* Empty div to balance the flex layout if we wanted perfect centering, 
+            but with gap-6 it looks fine slightly off-center or we can add a dummy button */}
+        <div className="w-12"></div>
       </div>
     </div>
   );
