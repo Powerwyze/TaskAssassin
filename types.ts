@@ -60,6 +60,30 @@ export interface ChatMessage {
 
 export interface SocialUser {
   id: string;
+  codename: string;
+  avatar?: string;
+  status: 'ONLINE' | 'OFFLINE' | 'BUSY';
+  handlerId: string;
+}
+
+export interface FriendRequest {
+  id: string;
+  fromUser: SocialUser;
+  timestamp: string;
+  message?: string;
+}
+
+export interface SentFriendRequest {
+  id: string;
+  toUser: SocialUser;
+  timestamp: string;
+  message?: string;
+}
+
+export interface SocialMessage {
+  id: string;
+  fromId: string;
+  toId: string;
   text: string;
   timestamp: string;
 }

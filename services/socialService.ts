@@ -92,6 +92,41 @@ export const removeFriend = async (currentUid: string, friendUid: string): Promi
 };
 
 /**
+ * Subscribe to friends list
+ */
+export const subscribeFriends = (
+  uid: string,
+  callback: (friends: SocialUser[]) => void
+): (() => void) => {
+  const friendsRef = ref(database, `friends/${uid}`);
+
+  const unsubscribe = onValue(friendsRef, async (snapshot) => {
+    const friends: SocialUser[] = [];
+
+    if (snapshot.exists()) {
+      const data = snapshot.val();
+      for (const friendUid in data) {
+        const userSnapshot = await get(ref(database, `users/${friendUid}/profile`));
+        if (userSnapshot.exists()) {
+          const userProfile = userSnapshot.val();
+          friends.push({
+            id: friendUid,
+            codename: userProfile.codename,
+            avatar: userProfile.avatar,
+            status: 'OFFLINE', // Default
+            handlerId: userProfile.handlerId
+          });
+        }
+      }
+    }
+
+    callback(friends);
+  });
+
+  return unsubscribe;
+};
+
+/**
  * Subscribe to friend requests in real-time
  */
 export const subscribeFriendRequests = (
@@ -313,4 +348,39 @@ export const getAllUsers = async (currentUid: string, limit: number = 20): Promi
 
   // Simple client-side limit for now
   return users.slice(0, limit);
+};
+
+/**
+ * Report a bug
+ */
+export const reportBug = async (uid: string, description: string): Promise<void> => {
+  const bugRef = push(ref(database, 'bugs'));
+  await set(bugRef, {
+    uid,
+    description,
+    timestamp: serverTimestamp(),
+    status: 'OPEN'
+  });
+};
+
+/**
+ * Subscribe to bug reports
+ */
+export const subscribeBugReports = (
+  callback: (reports: any[]) => void
+): (() => void) => {
+  const bugsRef = ref(database, 'bugs');
+  const unsubscribe = onValue(bugsRef, (snapshot) => {
+    const reports: any[] = [];
+    if (snapshot.exists()) {
+      snapshot.forEach((child) => {
+        reports.push({
+          id: child.key,
+          ...child.val()
+        });
+      });
+    }
+    callback(reports);
+  });
+  return unsubscribe;
 };
