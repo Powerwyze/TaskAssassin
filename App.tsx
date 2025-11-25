@@ -735,12 +735,13 @@ const App: React.FC = () => {
         )}
         {view === 'SOCIAL' && (
           <SocialHub
+            userProfile={userProfile}
             currentUserId={currentUserId || ''}
             friends={friends}
             friendRequests={friendRequests}
             sentRequests={sentFriendRequests}
             messages={socialMessages}
-            allUsers={allUsers}
+            mockUsers={allUsers}
             onSendRequest={handleSendFriendRequest}
             onAcceptRequest={handleAcceptRequest}
             onDeclineRequest={handleDeclineRequest}
