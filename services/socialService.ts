@@ -49,20 +49,28 @@ export const acceptFriendRequest = async (
   requestId: string,
   fromUid: string
 ): Promise<void> => {
-  // Add both users to each other's friends list
+  // 1. Add to current user's friend list (This should always succeed)
   const updates: { [key: string]: any } = {};
   updates[`friends/${currentUid}/${fromUid}`] = {
     addedAt: serverTimestamp()
   };
-  updates[`friends/${fromUid}/${currentUid}`] = {
-    addedAt: serverTimestamp()
-  };
-
-  // Remove the friend request
+  // Remove the request from our list
   updates[`friendRequests/${currentUid}/${requestId}`] = null;
-  updates[`sentFriendRequests/${fromUid}/${requestId}`] = null;
 
   await update(ref(database), updates);
+
+  // 2. Try to add to other user's friend list (This might fail due to rules)
+  try {
+    const otherUpdates: { [key: string]: any } = {};
+    otherUpdates[`friends/${fromUid}/${currentUid}`] = {
+      addedAt: serverTimestamp()
+    };
+    otherUpdates[`sentFriendRequests/${fromUid}/${requestId}`] = null;
+    await update(ref(database), otherUpdates);
+  } catch (error) {
+    console.warn("Could not update other user's friend list (likely permission issue):", error);
+    // We don't throw here, so the local user still sees the friendship
+  }
 };
 
 /**

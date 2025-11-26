@@ -285,6 +285,11 @@ const App: React.FC = () => {
           };
         }
         return m;
+      }).filter(m => {
+        if (m.id === mission.id && m.status === 'COMPLETED' && !m.recurrence) {
+          return false; // Remove non-recurring completed missions
+        }
+        return true;
       });
 
       setMissions(updatedMissions);
