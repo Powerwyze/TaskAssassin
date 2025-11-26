@@ -17,7 +17,7 @@ const MissionDossier: React.FC<MissionDossierProps> = ({ mission, result, onClos
             <ShieldAlert className="w-5 h-5" />
             GOAL REVIEW
           </h2>
-          <span className="text-xs text-slate-500 font-mono">{new Date().toISOString().split('T')[0]}</span>
+          <span className="text-xs text-slate-500 font-mono">{new Date().toISOString().split('T')[0].replace(/^\d{4}/, '2025')}</span>
         </div>
 
         <div className="p-6 space-y-6 max-h-[80vh] overflow-y-auto custom-scrollbar">

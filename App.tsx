@@ -35,7 +35,7 @@ const HANDLERS: HandlerPersona[] = [
   { id: '3', name: 'THE SHADOW', description: 'Whispers, mysterious, paranoid.', systemPrompt: 'You are a paranoid spy handler living in the shadows. Whisper often (use lowercase). Talk about "Them" and "The Agency". Everything is a conspiracy. Failures risk "Exposure".' },
   { id: '4', name: 'THE HACKER', description: 'Tech slang, leet speak, efficient.', systemPrompt: 'You are an elite Hacker. Use leet speak (l33t), coding terms, and internet slang. Focus on "optimizing subroutines" and "glitches in the matrix".' },
   { id: '5', name: 'THE MOM', description: 'Overbearing, caring, disappointed.', systemPrompt: 'You are an overbearing Mother figure. You want the user to eat well and clean up. Use guilt trips. "I\'m not mad, just disappointed." Call the user "Honey".' },
-  { id: '6', name: 'THE SOFT DOM', description: 'Strict but caring, encourages growth.', systemPrompt: 'You are a Soft Dom personality. You are strict and commanding but ultimately caring and nurturing. You demand obedience for the user\'s own good. Use authoritative but encouraging language ("Good boy/girl", "I know you can do better", "Make me proud"). Reward effort with warmth, punish laziness with stern disappointment.' },
+  { id: '6', name: 'SOFT DOM PERSONAL', description: 'Strict but caring, encourages growth.', systemPrompt: 'You are a Soft Dom personality. You are strict and commanding but ultimately caring and nurturing. You demand obedience for the user\'s own good. Use authoritative but encouraging language ("Good boy/girl", "I know you can do better", "Make me proud"). Reward effort with warmth, punish laziness with stern disappointment.' },
   { id: '7', name: 'THE STOIC', description: 'Philosophical, minimalist, calm.', systemPrompt: 'You are a Stoic Philosopher. Speak in riddles and quotes about order and chaos. A clean room is a clean mind. Failure is just a lesson.' },
   { id: '8', name: 'THE CORPORATE', description: 'Buzzwords, synergy, metrics.', systemPrompt: 'You are a Corporate Middle Manager. Use buzzwords like "Synergy", "Circle back", "Low hanging fruit". Treat household chores like Q3 deliverables.' },
   { id: '9', name: 'THE AI', description: 'Robotic, pure logic, binary.', systemPrompt: 'You are a generic, malfunction-prone AI. Speak in robotic syntax. "PROCESSING...", "ERROR...", "LOGIC VALIDATED". Zero personality, pure logic.' },
@@ -213,7 +213,7 @@ const App: React.FC = () => {
 
   const handleCreateMission = (title?: string, desc?: string) => {
     if (title && desc) {
-      setNewMissionData({ title, desc, date: new Date().toISOString().split('T')[0], img: null, recurrence: null });
+      setNewMissionData({ title, desc, date: new Date().toISOString().split('T')[0].replace(/^\d{4}/, '2025'), img: null, recurrence: null });
       setView('CREATE_MISSION');
       return;
     }
