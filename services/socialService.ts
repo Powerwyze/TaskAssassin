@@ -333,7 +333,7 @@ export const subscribeTasks = (
  * In a real app, this should be paginated and filtered server-side
  */
 export const getAllUsers = async (currentUid: string, limit: number = 20): Promise<SocialUser[]> => {
-  const usersRef = query(ref(database, 'users'), orderByChild('profile/codename'));
+  const usersRef = ref(database, 'users');
   const snapshot = await get(usersRef);
   const users: SocialUser[] = [];
 
@@ -353,6 +353,9 @@ export const getAllUsers = async (currentUid: string, limit: number = 20): Promi
       }
     });
   }
+
+  // Sort by codename
+  users.sort((a, b) => a.codename.localeCompare(b.codename));
 
   // Simple client-side limit for now
   return users.slice(0, limit);

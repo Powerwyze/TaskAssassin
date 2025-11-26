@@ -187,9 +187,12 @@ const SocialHub: React.FC<SocialHubProps> = ({
                     </div>
 
                     <div className="space-y-3">
-                        {filteredUsers.length === 0 && searchQuery && (
-                            <div className="text-center text-slate-500 font-mono text-xs">NO USERS FOUND.</div>
-                        )}
+                        {mockUsers.length === 0 ? (
+                            <div className="text-center text-slate-500 font-mono text-xs p-4">NO OTHER USERS FOUND. INVITE FRIENDS TO JOIN.</div>
+                        ) : filteredUsers.length === 0 && searchQuery ? (
+                            <div className="text-center text-slate-500 font-mono text-xs">NO USERS MATCHING "{searchQuery}".</div>
+                        ) : null}
+
                         {filteredUsers.map(user => {
                             const isPending = requests.find(r => r.fromUser.id === user.id);
                             const isSent = sentRequests.find(r => r.toUser.id === user.id);
