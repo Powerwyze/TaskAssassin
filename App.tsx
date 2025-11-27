@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Crosshair, Wallet, Shield, Calendar, ArrowLeft, Check, MessageSquare, Settings, RotateCcw, UserCircle, Clock, Globe, AlertTriangle, HelpCircle } from 'lucide-react';
+import { Plus, Crosshair, Wallet, Shield, Calendar, ArrowLeft, Check, MessageSquare, Settings, RotateCcw, UserCircle, Clock, Globe, AlertTriangle, HelpCircle, TrendingUp, Trophy, Flame } from 'lucide-react';
 import SpyCamera from './components/SpyCamera';
 import MissionDossier from './components/MissionDossier';
 import LoginScreen from './components/LoginScreen';
@@ -9,7 +9,11 @@ import SocialHub from './components/SocialHub';
 import TutorialOverlay from './components/TutorialOverlay';
 import BugReportModal from './components/BugReportModal';
 import AdminPage from './components/AdminPage';
+import { ProgressDashboard } from './components/ProgressDashboard';
+import { Leaderboard } from './components/Leaderboard';
 import { verifyIntel } from './services/geminiService';
+import { subscribeUserStats, updateStatsOnTaskCompletion } from './services/gamificationService';
+import { celebrate } from './utils/celebration';
 import { subscribeToAuthState, getUserProfile, updateUserProfile } from './services/authService';
 import {
   subscribeFriends,
@@ -25,7 +29,7 @@ import {
   issueTask,
   getAllUsers
 } from './services/socialService';
-import { Mission, MissionResult, HandlerPersona, UserProfile, SocialUser, FriendRequest, SocialMessage, SentFriendRequest } from './types';
+import { Mission, MissionResult, HandlerPersona, UserProfile, SocialUser, FriendRequest, SocialMessage, SentFriendRequest, UserStats } from './types';
 
 // --- DATA CONSTANTS ---
 
@@ -84,6 +88,12 @@ const App: React.FC = () => {
   // UI State
   const [showTutorial, setShowTutorial] = useState(false);
   const [showBugReport, setShowBugReport] = useState(false);
+  const [showProgressDashboard, setShowProgressDashboard] = useState(false);
+  const [showLeaderboard, setShowLeaderboard] = useState(false);
+
+  // Gamification State
+  const [userStats, setUserStats] = useState<UserStats | null>(null);
+  const [soundEnabled, setSoundEnabled] = useState(true);
 
   // Creation State
   const [newMissionData, setNewMissionData] = useState<{
@@ -197,6 +207,17 @@ const App: React.FC = () => {
     return () => unsubscribe();
   }, [currentUserId]);
 
+  // Subscribe to User Stats
+  useEffect(() => {
+    if (!currentUserId) return;
+
+    const unsubscribe = subscribeUserStats(currentUserId, (stats) => {
+      setUserStats(stats);
+    });
+
+    return () => unsubscribe();
+  }, [currentUserId]);
+
   const handleLogin = (code: string) => {
     setUserProfile(prev => ({ ...prev, codename: code }));
     setView('PROFILE');
@@ -293,6 +314,18 @@ const App: React.FC = () => {
       });
 
       setMissions(updatedMissions);
+
+      // Update gamification stats if task completed successfully
+      if (result.missionComplete && currentUserId) {
+        const prevLevel = userStats?.level || 1;
+        const newAchievements = await updateStatsOnTaskCompletion(currentUserId, result.starsAwarded);
+        const newStats = await subscribeUserStats(currentUserId, () => {});
+        const leveledUp = (newStats as any)?.level > prevLevel;
+
+        // Trigger celebration with confetti and sound
+        celebrate(result.starsAwarded, soundEnabled, newAchievements, leveledUp);
+      }
+
       setView('DEBRIEF');
     } catch (err: any) {
       setError(err.message);
@@ -416,19 +449,53 @@ const App: React.FC = () => {
             <Shield className="w-6 h-6 text-white" />
           </div>
           <div>
-            <div className="text-xs text-purple-300 font-mono uppercase">Reputation</div>
+            <div className="text-xs text-purple-300 font-mono uppercase">Level {userStats?.level || 1}</div>
             <div className="text-xl font-bold font-mono bg-gradient-to-r from-cyber-purple to-cyber-pink bg-clip-text text-transparent">{totalStars} STARS</div>
           </div>
         </div>
-        <div className="bg-gradient-to-br from-cyan-900/40 to-slate-900/40 p-4 rounded-lg border border-cyan-500/30 flex items-center gap-3 shadow-neon-cyan">
-          <div className="p-2 bg-gradient-to-br from-cyber-cyan to-neon-green rounded-full shadow-lg">
-            <Wallet className="w-6 h-6 text-white" />
+        <div className="bg-gradient-to-br from-orange-900/40 to-slate-900/40 p-4 rounded-lg border border-orange-500/30 flex items-center gap-3 shadow-lg">
+          <div className="p-2 bg-gradient-to-br from-orange-500 to-red-500 rounded-full shadow-lg">
+            <Flame className="w-6 h-6 text-white" />
           </div>
           <div>
-            <div className="text-xs text-cyan-300 font-mono uppercase">Wallet</div>
-            <div className="text-xl font-bold font-mono bg-gradient-to-r from-cyber-cyan to-neon-green bg-clip-text text-transparent">$0.00</div>
+            <div className="text-xs text-orange-300 font-mono uppercase">Streak</div>
+            <div className="text-xl font-bold font-mono bg-gradient-to-r from-orange-400 to-red-400 bg-clip-text text-transparent">{userStats?.currentStreak || 0} DAYS</div>
           </div>
         </div>
+      </div>
+
+      {/* XP Progress Bar */}
+      {userStats && (
+        <div className="bg-gradient-to-br from-slate-900/60 to-purple-900/60 p-4 rounded-lg border border-cyber-purple/30">
+          <div className="flex justify-between text-sm mb-2">
+            <span className="text-gray-300">XP Progress</span>
+            <span className="text-cyber-cyan">{userStats.xp % 100}/100</span>
+          </div>
+          <div className="w-full bg-slate-800 rounded-full h-3 overflow-hidden border border-cyber-purple/30">
+            <div
+              className="h-full bg-gradient-to-r from-cyber-purple to-cyber-pink transition-all duration-500"
+              style={{ width: `${userStats.xp % 100}%` }}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Action Buttons */}
+      <div className="grid grid-cols-2 gap-3">
+        <button
+          onClick={() => setShowProgressDashboard(true)}
+          className="bg-gradient-to-r from-cyber-purple to-cyber-pink text-white py-3 px-4 rounded-lg font-bold flex items-center justify-center gap-2 hover:shadow-neon-purple transition-all"
+        >
+          <TrendingUp size={18} />
+          Progress
+        </button>
+        <button
+          onClick={() => setShowLeaderboard(true)}
+          className="bg-gradient-to-r from-cyber-cyan to-neon-green text-white py-3 px-4 rounded-lg font-bold flex items-center justify-center gap-2 hover:shadow-neon-cyan transition-all"
+        >
+          <Trophy size={18} />
+          Leaderboard
+        </button>
       </div>
 
       {/* Friends List (Mini) */}
@@ -836,6 +903,22 @@ const App: React.FC = () => {
         onClose={() => setShowBugReport(false)}
         currentUserId={currentUserId || 'anonymous'}
       />
+
+      {/* Gamification Modals */}
+      {showProgressDashboard && currentUserId && (
+        <ProgressDashboard
+          userId={currentUserId}
+          onClose={() => setShowProgressDashboard(false)}
+        />
+      )}
+
+      {showLeaderboard && currentUserId && (
+        <Leaderboard
+          userId={currentUserId}
+          friendIds={friends.map(f => f.id)}
+          onClose={() => setShowLeaderboard(false)}
+        />
+      )}
 
       {/* Admin Access Hidden Trigger */}
       <div
