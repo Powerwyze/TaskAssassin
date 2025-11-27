@@ -51,17 +51,19 @@
                 }
             }
         },
-        "messages": {
-            "$threadId": {
-                ".read": "auth != null",
-                ".write": "auth != null"
+        "userMessages": {
+            "$uid": {
+                ".read": "$uid === auth.uid",
+                "$messageId": {
+                    ".write": "$uid === auth.uid || (!data.exists() && newData.exists() && newData.child('fromUid').val() === auth.uid)"
+                }
             }
         },
         "tasks": {
             "$uid": {
                 ".read": "$uid === auth.uid",
                 "$taskId": {
-                    ".write": "$uid === auth.uid || (!data.exists() && newData.exists())"
+                    ".write": "$uid === auth.uid || (!data.exists() && newData.exists() && newData.child('fromUid').val() === auth.uid)"
                 }
             }
         },

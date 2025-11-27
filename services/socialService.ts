@@ -228,14 +228,24 @@ export const subscribeSentFriendRequests = (
  * Send a message to a friend
  */
 export const sendMessage = async (fromUid: string, toUid: string, text: string): Promise<void> => {
-  const messageRef = push(ref(database, 'messages'));
-  await set(messageRef, {
-    id: messageRef.key,
+  const messageId = push(ref(database, 'userMessages')).key; // Generate key
+  if (!messageId) throw new Error("Failed to generate message ID");
+
+  const messageData = {
+    id: messageId,
     fromUid,
     toUid,
     text,
     timestamp: serverTimestamp()
-  });
+  };
+
+  const updates: { [key: string]: any } = {};
+  // Write to sender's outbox
+  updates[`userMessages/${fromUid}/${messageId}`] = messageData;
+  // Write to recipient's inbox
+  updates[`userMessages/${toUid}/${messageId}`] = messageData;
+
+  await update(ref(database), updates);
 };
 
 /**
@@ -247,7 +257,7 @@ export const subscribeMessages = (
   callback: (messages: SocialMessage[]) => void
 ): (() => void) => {
   const messagesRef = query(
-    ref(database, 'messages'),
+    ref(database, `userMessages/${currentUid}`),
     orderByChild('timestamp')
   );
 
@@ -256,6 +266,7 @@ export const subscribeMessages = (
     if (snapshot.exists()) {
       snapshot.forEach((childSnapshot) => {
         const msg = childSnapshot.val();
+        // Filter for messages involved in this specific conversation
         if (
           (msg.fromUid === currentUid && msg.toUid === otherUid) ||
           (msg.fromUid === otherUid && msg.toUid === currentUid)

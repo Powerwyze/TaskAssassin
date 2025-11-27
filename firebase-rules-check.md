@@ -104,8 +104,8 @@ Replace your current rules with this:
 - **friends**: Read own. Write own or friend's list (for adding/removing).
 - **friendRequests**: Read own. Write own (accept/decline) OR create new (sender) OR cancel (sender).
 - **sentFriendRequests**: Read own. Write own OR delete (recipient, for cleanup).
-- **messages**: Read/Write all (auth). *Ideally should be restricted to participants.*
-- **tasks**: Read own. Write own OR create new (issuer).
+- **userMessages**: Read own. Write own (sender) OR write to recipient (sender).
+- **tasks**: Read own. Write own OR create new (issuer, with sender validation).
 - **bugs**: Read/Write all (auth).
 
 ### 5. Click Publish
