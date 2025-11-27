@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Crosshair, Wallet, Shield, Calendar, ArrowLeft, Check, MessageSquare, Settings, RotateCcw, UserCircle, Clock, Globe, AlertTriangle, HelpCircle, TrendingUp, Trophy, Flame } from 'lucide-react';
+import { Plus, Crosshair, Wallet, Shield, Calendar, ArrowLeft, Check, MessageSquare, Settings, RotateCcw, UserCircle, Clock, Globe, AlertTriangle, HelpCircle, TrendingUp, Trophy, Flame, X } from 'lucide-react';
 import SpyCamera from './components/SpyCamera';
 import MissionDossier from './components/MissionDossier';
 import LoginScreen from './components/LoginScreen';
@@ -19,7 +19,6 @@ import {
   subscribeFriends,
   subscribeFriendRequests,
   subscribeSentFriendRequests,
-  subscribeMessages,
   subscribeTasks,
   sendFriendRequest,
   acceptFriendRequest,
@@ -27,7 +26,9 @@ import {
   removeFriend,
   sendMessage,
   issueTask,
-  getAllUsers
+  getAllUsers,
+  deleteTask,
+  updateTask
 } from './services/socialService';
 import { Mission, MissionResult, HandlerPersona, UserProfile, SocialUser, FriendRequest, SocialMessage, SentFriendRequest, UserStats } from './types';
 
@@ -232,7 +233,7 @@ const App: React.FC = () => {
     }
   };
 
-  const handleCreateMission = (title?: string, desc?: string) => {
+  const handleCreateMission = async (title?: string, desc?: string) => {
     if (title && desc) {
       setNewMissionData({ title, desc, date: new Date().toISOString().split('T')[0].replace(/^\d{4}/, '2025'), img: null, recurrence: null });
       setView('CREATE_MISSION');
@@ -240,18 +241,39 @@ const App: React.FC = () => {
     }
 
     if (!newMissionData.title || !newMissionData.img) return;
-    const newMission: Mission = {
-      id: Date.now().toString(),
-      codename: newMissionData.title.toUpperCase(),
-      briefing: newMissionData.desc,
-      deadline: newMissionData.date,
-      startImage: newMissionData.img,
-      status: 'PENDING',
-      stars: 0,
-      recurrence: newMissionData.recurrence,
-      issuer: 'COMMAND'
-    };
-    setMissions([newMission, ...missions]);
+
+    // If logged in, save to Firebase
+    if (currentUserId) {
+      try {
+        await issueTask(
+          currentUserId,
+          currentUserId, // Issue to self
+          newMissionData.title.toUpperCase(),
+          newMissionData.desc,
+          newMissionData.date,
+          'COMMAND'
+        );
+        // We don't need to manually setMissions because the subscription will catch it
+      } catch (err: any) {
+        alert(`Failed to save goal: ${err.message}`);
+        return;
+      }
+    } else {
+      // Local fallback
+      const newMission: Mission = {
+        id: Date.now().toString(),
+        codename: newMissionData.title.toUpperCase(),
+        briefing: newMissionData.desc,
+        deadline: newMissionData.date,
+        startImage: newMissionData.img,
+        status: 'PENDING',
+        stars: 0,
+        recurrence: newMissionData.recurrence,
+        issuer: 'COMMAND'
+      };
+      setMissions([newMission, ...missions]);
+    }
+
     setView('DASHBOARD');
     setNewMissionData({ title: '', desc: '', date: '', img: null, recurrence: null });
   };
@@ -261,8 +283,34 @@ const App: React.FC = () => {
     setView('EXECUTE_MISSION');
   };
 
-  const handleAcceptProposedMission = (mission: Mission) => {
-    setMissions(missions.map(m => m.id === mission.id ? { ...m, status: 'PENDING', startImage: 'https://placehold.co/400x300/1e293b/ef4444?text=PENDING+SCAN' } : m));
+  const handleAcceptProposedMission = async (mission: Mission) => {
+    if (currentUserId) {
+      try {
+        await updateTask(currentUserId, mission.id, {
+          status: 'PENDING',
+          startImage: 'https://placehold.co/400x300/1e293b/ef4444?text=PENDING+SCAN'
+        });
+      } catch (err: any) {
+        alert(`Failed to accept mission: ${err.message}`);
+      }
+    } else {
+      setMissions(missions.map(m => m.id === mission.id ? { ...m, status: 'PENDING', startImage: 'https://placehold.co/400x300/1e293b/ef4444?text=PENDING+SCAN' } : m));
+    }
+  };
+
+  const handleDeleteTask = async (mission: Mission) => {
+    if (confirm(`Are you sure you want to delete mission "${mission.codename}"?`)) {
+      if (currentUserId) {
+        try {
+          await deleteTask(currentUserId, mission.id);
+          // Subscription will update UI
+        } catch (err: any) {
+          alert(`Failed to delete mission: ${err.message}`);
+        }
+      } else {
+        setMissions(missions.filter(m => m.id !== mission.id));
+      }
+    }
   };
 
   const handleRepeatMission = (originalMission: Mission) => {
@@ -275,7 +323,20 @@ const App: React.FC = () => {
       lastFeedback: undefined,
       codename: `${originalMission.codename} (REDUX)`
     };
-    setMissions([repeatedMission, ...missions]);
+
+    if (currentUserId) {
+      // Ideally we should create this in Firebase
+      issueTask(
+        currentUserId,
+        currentUserId,
+        repeatedMission.codename,
+        repeatedMission.briefing,
+        repeatedMission.deadline,
+        repeatedMission.issuer || 'COMMAND'
+      ).catch(err => alert("Failed to repeat mission: " + err.message));
+    } else {
+      setMissions([repeatedMission, ...missions]);
+    }
   };
 
   const handleVerifyMission = async (evidenceBase64: string) => {
@@ -295,35 +356,36 @@ const App: React.FC = () => {
       );
       setLastResult(result);
 
-      const updatedMissions = missions.map(m => {
-        if (m.id === mission.id) {
-          return {
-            ...m,
-            endImage: evidenceBase64,
-            status: result.missionComplete ? 'COMPLETED' : 'FAILED' as any,
-            stars: result.missionComplete ? (m.stars + result.starsAwarded) : m.stars,
-            lastFeedback: result.debrief
-          };
+      const updates = {
+        endImage: evidenceBase64,
+        status: result.missionComplete ? 'COMPLETED' : 'FAILED',
+        stars: result.missionComplete ? (mission.stars + result.starsAwarded) : mission.stars,
+        lastFeedback: result.debrief
+      };
+
+      if (currentUserId) {
+        await updateTask(currentUserId, mission.id, updates);
+
+        // Update gamification stats if task completed successfully
+        if (result.missionComplete) {
+          const prevLevel = userStats?.level || 1;
+          const newAchievements = await updateStatsOnTaskCompletion(currentUserId, result.starsAwarded);
+          // Stats subscription will handle the update
+
+          // Trigger celebration with confetti and sound
+          // We can check level up by comparing with new stats after a brief delay or just optimistically
+          celebrate(result.starsAwarded, soundEnabled, newAchievements, false); // Passing false for levelUp for now as we don't know yet
         }
-        return m;
-      }).filter(m => {
-        if (m.id === mission.id && m.status === 'COMPLETED' && !m.recurrence) {
-          return false; // Remove non-recurring completed missions
-        }
-        return true;
-      });
-
-      setMissions(updatedMissions);
-
-      // Update gamification stats if task completed successfully
-      if (result.missionComplete && currentUserId) {
-        const prevLevel = userStats?.level || 1;
-        const newAchievements = await updateStatsOnTaskCompletion(currentUserId, result.starsAwarded);
-        const newStats = await subscribeUserStats(currentUserId, () => {});
-        const leveledUp = (newStats as any)?.level > prevLevel;
-
-        // Trigger celebration with confetti and sound
-        celebrate(result.starsAwarded, soundEnabled, newAchievements, leveledUp);
+      } else {
+        // Local update
+        const updatedMissions = missions.map(m => {
+          if (m.id === mission.id) {
+            return { ...m, ...updates } as Mission;
+          }
+          return m;
+        });
+        setMissions(updatedMissions);
+        if (result.missionComplete) celebrate(result.starsAwarded, soundEnabled, [], false);
       }
 
       setView('DEBRIEF');
@@ -587,6 +649,13 @@ const App: React.FC = () => {
                         }`}
                     >
                       {m.status === 'COMPLETED' ? 'DONE' : 'START'}
+                    </button>
+                    <button
+                      onClick={() => handleDeleteTask(m)}
+                      title="Delete Goal"
+                      className="p-2 bg-slate-800 hover:bg-red-900/50 text-slate-500 hover:text-red-500 rounded border border-transparent hover:border-red-500/30 transition-all"
+                    >
+                      <X className="w-4 h-4" />
                     </button>
                   </>
                 )}

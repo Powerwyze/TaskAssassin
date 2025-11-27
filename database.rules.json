@@ -9,6 +9,24 @@
                 }
             }
         },
+        "userStats": {
+            "$uid": {
+                ".read": "auth != null",
+                ".write": "$uid === auth.uid"
+            }
+        },
+        "achievements": {
+            "$uid": {
+                ".read": "auth != null",
+                ".write": "$uid === auth.uid"
+            }
+        },
+        "notifications": {
+            "$uid": {
+                ".read": "$uid === auth.uid",
+                ".write": "$uid === auth.uid"
+            }
+        },
         "friends": {
             "$uid": {
                 ".read": "$uid === auth.uid",
@@ -21,7 +39,15 @@
             "$uid": {
                 ".read": "$uid === auth.uid",
                 "$requestId": {
-                    ".write": "$uid === auth.uid || !data.exists()"
+                    ".write": "$uid === auth.uid || (!data.exists() && newData.exists()) || (data.child('fromUid').val() === auth.uid && !newData.exists())"
+                }
+            }
+        },
+        "sentFriendRequests": {
+            "$uid": {
+                ".read": "$uid === auth.uid",
+                "$requestId": {
+                    ".write": "$uid === auth.uid || (data.child('toUid').val() === auth.uid && !newData.exists())"
                 }
             }
         },
@@ -34,10 +60,12 @@
         "tasks": {
             "$uid": {
                 ".read": "$uid === auth.uid",
-                ".write": "auth != null"
+                "$taskId": {
+                    ".write": "$uid === auth.uid || (!data.exists() && newData.exists())"
+                }
             }
         },
-        "bugReports": {
+        "bugs": {
             ".read": "auth != null",
             ".write": "auth != null"
         }

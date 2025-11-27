@@ -326,6 +326,22 @@ export const subscribeTasks = (
   return unsubscribe;
 };
 
+/**
+ * Delete a task
+ */
+export const deleteTask = async (uid: string, taskId: string): Promise<void> => {
+  const taskRef = ref(database, `tasks/${uid}/${taskId}`);
+  await remove(taskRef);
+};
+
+/**
+ * Update a task
+ */
+export const updateTask = async (uid: string, taskId: string, updates: any): Promise<void> => {
+  const taskRef = ref(database, `tasks/${uid}/${taskId}`);
+  await update(taskRef, updates);
+};
+
 // ==================== USER DISCOVERY ====================
 
 /**

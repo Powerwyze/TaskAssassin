@@ -26,24 +26,52 @@ Replace your current rules with this:
 {
   "rules": {
     "users": {
+      ".read": "auth != null",
       "$uid": {
-        ".read": "auth != null",
         ".write": "$uid === auth.uid",
         "profile": {
-          ".read": "auth != null"
+          ".write": "$uid === auth.uid"
         }
       }
     },
-    "friends": {
+    "userStats": {
+      "$uid": {
+        ".read": "auth != null",
+        ".write": "$uid === auth.uid"
+      }
+    },
+    "achievements": {
+      "$uid": {
+        ".read": "auth != null",
+        ".write": "$uid === auth.uid"
+      }
+    },
+    "notifications": {
       "$uid": {
         ".read": "$uid === auth.uid",
         ".write": "$uid === auth.uid"
       }
     },
+    "friends": {
+      "$uid": {
+        ".read": "$uid === auth.uid",
+        "$friendUid": {
+          ".write": "$uid === auth.uid || $friendUid === auth.uid"
+        }
+      }
+    },
     "friendRequests": {
       "$uid": {
         ".read": "$uid === auth.uid",
-        ".write": "auth != null"
+        "$requestId": {
+          ".write": "$uid === auth.uid || (!data.exists() && newData.exists())"
+        }
+      }
+    },
+    "sentFriendRequests": {
+      "$uid": {
+        ".read": "$uid === auth.uid",
+        ".write": "$uid === auth.uid"
       }
     },
     "messages": {
@@ -55,14 +83,30 @@ Replace your current rules with this:
     "tasks": {
       "$uid": {
         ".read": "$uid === auth.uid",
-        ".write": "auth != null"
+        "$taskId": {
+          ".write": "$uid === auth.uid || (!data.exists() && newData.exists())"
+        }
       }
+    },
+    "bugs": {
+      ".read": "auth != null",
+      ".write": "auth != null"
     }
   }
 }
 ```
 
-**Key Change:** The `.read` rule for `users` is now `"auth != null"` which allows any authenticated user to read other users' profiles.
+### Rules Summary
+- **users**: Read all (auth), Write own profile.
+- **userStats**: Read all (auth), Write own.
+- **achievements**: Read all (auth), Write own.
+- **notifications**: Read/Write own.
+- **friends**: Read own. Write own or friend's list (for adding/removing).
+- **friendRequests**: Read own. Write own (accept/decline) OR create new (sender) OR cancel (sender).
+- **sentFriendRequests**: Read own. Write own OR delete (recipient, for cleanup).
+- **messages**: Read/Write all (auth). *Ideally should be restricted to participants.*
+- **tasks**: Read own. Write own OR create new (issuer).
+- **bugs**: Read/Write all (auth).
 
 ### 5. Click Publish
 
