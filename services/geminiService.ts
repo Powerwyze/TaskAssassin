@@ -4,103 +4,42 @@ import { MissionResult, ChatMessage } from "../types";
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 const missionSchema: Schema = {
-  type: Type.OBJECT,
-  properties: {
-    missionComplete: {
-      type: Type.BOOLEAN,
-      description: "TRUE only if the After Image is clean AND matches the Before Image location.",
-    },
-    starsAwarded: {
-      type: Type.INTEGER,
-      description: "1 for effort, 2 for good, 3 for perfect execution. 0 if failed.",
-    },
-    debrief: {
-      type: Type.STRING,
-      description: "Tactical summary of the mission outcome. STRICTLY ADHERE to the Persona requested.",
-    },
-    tacticalAdvice: {
-      type: Type.ARRAY,
-      items: { type: Type.STRING },
-      description: "List of specific discrepancies or tasks remaining.",
-    },
-  },
-  required: ["missionComplete", "starsAwarded", "debrief", "tacticalAdvice"],
-};
-
-export const verifyIntel = async (
-  missionDescription: string,
-  startImageBase64: string,
-  endImageBase64: string,
-  handlerPrompt: string,
-  userLifeGoal: string
-): Promise<MissionResult> => {
-
-  const isStartImageURL = startImageBase64.startsWith('http');
-  const cleanEnd = endImageBase64.split(',')[1] || endImageBase64;
-
-  const parts: any[] = [
-    {
-      text: `ROLE: You are the user's Task Handler. 
-    
-    PERSONALITY PROTOCOL (CRITICAL): ${handlerPrompt}
-    
-    USER PROFILE (MOTIVATION): The user is trying to improve their life in this way: "${userLifeGoal}". Use this context to motivate, shame, or praise them according to your persona.
-    
-    MISSION CONTEXT: The Operative (user) has a mission: "${missionDescription}".
-    
-    INPUTS:
-    ${isStartImageURL ? '1. BEFORE IMAGE: Not available (Assigned Task). Evaluate based on description only.' : '1. BEFORE IMAGE (Start): The initial messy state or environment.'}
-    2. AFTER IMAGE (End): The submitted evidence of completion.
-
-    PROTOCOL:
-    1. **ANTI-CHEAT / LOCATION CHECK**: ${isStartImageURL ? 'Skip location check as there is no Before image.' : 'Compare the background, furniture, and layout of the BEFORE and AFTER images. If they are NOT the same physical location, FAIL the mission immediately.'}
-    
-    2. **COMPLETION CHECK**: Analyze the AFTER image. 
-       - Does it look clean, organized, and finished based on the mission description?
-       ${isStartImageURL ? '' : '- Compare it to the BEFORE image to ensure actual work was done (mess removed, bed made, etc.).'}
-       - If the AFTER image is still messy or doesn't match the goal, fail the mission.
-
-    3. **OUTPUT**: Your "debrief" must embody the personality described above completely.` },
-    {
-      inlineData: {
-        mimeType: 'image/jpeg',
-        data: cleanEnd
-      }
+}
     }
   ];
 
-  if (!isStartImageURL) {
-    const cleanStart = startImageBase64.split(',')[1] || startImageBase64;
-    parts.push({
-      inlineData: {
-        mimeType: 'image/jpeg',
-        data: cleanStart
-      }
-    });
-  }
-
-  const response = await ai.models.generateContent({
-    model: 'gemini-2.0-flash',
-    contents: {
-      parts: parts
-    },
-    config: {
-      responseMimeType: "application/json",
-      responseSchema: missionSchema,
-      temperature: 0.7,
+if (!isStartImageURL) {
+  const cleanStart = startImageBase64.split(',')[1] || startImageBase64;
+  parts.push({
+    inlineData: {
+      mimeType: 'image/jpeg',
+      data: cleanStart
     }
   });
+}
 
-  if (response.text) {
-    try {
-      return JSON.parse(response.text) as MissionResult;
-    } catch (e) {
-      console.error("Failed to parse Intel", e);
-      throw new Error("Intel corrupted. Transmission failed.");
-    }
+const response = await ai.models.generateContent({
+  model: 'gemini-2.0-flash',
+  contents: {
+    parts: parts
+  },
+  config: {
+    responseMimeType: "application/json",
+    responseSchema: missionSchema,
+    temperature: 0.7,
   }
+});
 
-  throw new Error("Handler silent. No response.");
+if (response.text) {
+  try {
+    return JSON.parse(response.text) as MissionResult;
+  } catch (e) {
+    console.error("Failed to parse Intel", e);
+    throw new Error("Intel corrupted. Transmission failed.");
+  }
+}
+
+throw new Error("Handler silent. No response.");
 };
 
 // Schema for Chat Suggestions

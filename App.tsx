@@ -871,7 +871,7 @@ const App: React.FC = () => {
           <TacticalChat
             persona={activeHandler}
             userLifeGoal={userProfile.lifeGoal}
-            onMissionCreate={handleCreateMission}
+            onAddMission={handleCreateMission}
           />
         )}
         {view === 'SOCIAL' && (
