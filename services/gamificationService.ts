@@ -209,27 +209,34 @@ const checkAndUnlockAchievements = async (uid: string, stats: UserStats): Promis
 
 // ==================== LEADERBOARD ====================
 
-/**
- * Get leaderboard (friends only)
- */
-export const getFriendsLeaderboard = async (uid: string, friendIds: string[]): Promise<Array<{
+export interface LeaderboardEntry {
   uid: string;
   codename: string;
   totalStars: number;
   level: number;
   currentStreak: number;
-}>> => {
-  const leaderboard: Array<{
-    uid: string;
-    codename: string;
-    totalStars: number;
-    level: number;
-    currentStreak: number;
-  }> = [];
+  longestStreak: number;
+  totalTasksCompleted: number;
+  weeklyCompletions: number;
+  monthlyCompletions: number;
+  xp: number;
+  achievementsUnlocked: number;
+}
+
+/**
+ * Get leaderboard (friends only) with detailed stats
+ */
+export const getFriendsLeaderboard = async (uid: string, friendIds: string[]): Promise<LeaderboardEntry[]> => {
+  const leaderboard: LeaderboardEntry[] = [];
 
   // Add current user
   const userStats = await getUserStats(uid);
   const userProfileSnap = await get(ref(database, `users/${uid}/profile`));
+  const userAchievementsSnap = await get(ref(database, `achievements/${uid}`));
+  const userAchievementsCount = userAchievementsSnap.exists()
+    ? Object.keys(userAchievementsSnap.val()).length
+    : 0;
+
   if (userProfileSnap.exists()) {
     const userProfile = userProfileSnap.val();
     leaderboard.push({
@@ -237,7 +244,13 @@ export const getFriendsLeaderboard = async (uid: string, friendIds: string[]): P
       codename: userProfile.codename,
       totalStars: userStats.totalStars,
       level: userStats.level,
-      currentStreak: userStats.currentStreak
+      currentStreak: userStats.currentStreak,
+      longestStreak: userStats.longestStreak,
+      totalTasksCompleted: userStats.totalTasksCompleted,
+      weeklyCompletions: userStats.weeklyCompletions,
+      monthlyCompletions: userStats.monthlyCompletions,
+      xp: userStats.xp,
+      achievementsUnlocked: userAchievementsCount
     });
   }
 
@@ -245,6 +258,10 @@ export const getFriendsLeaderboard = async (uid: string, friendIds: string[]): P
   for (const friendId of friendIds) {
     const friendStats = await getUserStats(friendId);
     const friendProfileSnap = await get(ref(database, `users/${friendId}/profile`));
+    const friendAchievementsSnap = await get(ref(database, `achievements/${friendId}`));
+    const friendAchievementsCount = friendAchievementsSnap.exists()
+      ? Object.keys(friendAchievementsSnap.val()).length
+      : 0;
 
     if (friendProfileSnap.exists()) {
       const friendProfile = friendProfileSnap.val();
@@ -253,7 +270,13 @@ export const getFriendsLeaderboard = async (uid: string, friendIds: string[]): P
         codename: friendProfile.codename,
         totalStars: friendStats.totalStars,
         level: friendStats.level,
-        currentStreak: friendStats.currentStreak
+        currentStreak: friendStats.currentStreak,
+        longestStreak: friendStats.longestStreak,
+        totalTasksCompleted: friendStats.totalTasksCompleted,
+        weeklyCompletions: friendStats.weeklyCompletions,
+        monthlyCompletions: friendStats.monthlyCompletions,
+        xp: friendStats.xp,
+        achievementsUnlocked: friendAchievementsCount
       });
     }
   }

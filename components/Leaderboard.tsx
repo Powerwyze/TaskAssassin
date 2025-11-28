@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { Trophy, Medal, Flame, Star } from 'lucide-react';
-import { getFriendsLeaderboard } from '../services/gamificationService';
+import { Trophy, Medal, Flame, Star, ChevronDown, ChevronUp, Target, Award, Calendar, TrendingUp } from 'lucide-react';
+import { getFriendsLeaderboard, LeaderboardEntry } from '../services/gamificationService';
 
 interface Props {
   userId: string;
@@ -8,17 +8,10 @@ interface Props {
   onClose: () => void;
 }
 
-interface LeaderboardEntry {
-  uid: string;
-  codename: string;
-  totalStars: number;
-  level: number;
-  currentStreak: number;
-}
-
 export const Leaderboard: React.FC<Props> = ({ userId, friendIds, onClose }) => {
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [loading, setLoading] = useState(true);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
   useEffect(() => {
     loadLeaderboard();
@@ -73,6 +66,9 @@ export const Leaderboard: React.FC<Props> = ({ userId, friendIds, onClose }) => 
             {leaderboard.map((entry, index) => {
               const isCurrentUser = entry.uid === userId;
               const rankColor = getRankColor(index);
+              const isExpanded = expandedId === entry.uid;
+              const xpToNextLevel = 100 - (entry.xp % 100);
+              const xpProgress = (entry.xp % 100) / 100 * 100;
 
               return (
                 <div
@@ -83,7 +79,10 @@ export const Leaderboard: React.FC<Props> = ({ userId, friendIds, onClose }) => 
                       : 'border-transparent'
                   } transition-all`}
                 >
-                  <div className="flex items-center gap-4">
+                  <div
+                    className="flex items-center gap-4 cursor-pointer"
+                    onClick={() => setExpandedId(isExpanded ? null : entry.uid)}
+                  >
                     {/* Rank */}
                     <div className="w-12 flex justify-center">
                       {getRankIcon(index)}
@@ -101,7 +100,7 @@ export const Leaderboard: React.FC<Props> = ({ userId, friendIds, onClose }) => 
                           </span>
                         )}
                       </div>
-                      <div className="flex items-center gap-4 mt-1 text-sm">
+                      <div className="flex items-center gap-4 mt-1 text-sm flex-wrap">
                         <span className="flex items-center gap-1 text-yellow-300">
                           <Star size={14} />
                           {entry.totalStars}
@@ -115,17 +114,120 @@ export const Leaderboard: React.FC<Props> = ({ userId, friendIds, onClose }) => 
                             {entry.currentStreak}
                           </span>
                         )}
+                        <span className="flex items-center gap-1 text-blue-300">
+                          <Target size={14} />
+                          {entry.totalTasksCompleted}
+                        </span>
+                        <span className="flex items-center gap-1 text-purple-300">
+                          <Award size={14} />
+                          {entry.achievementsUnlocked}
+                        </span>
                       </div>
                     </div>
 
-                    {/* Score */}
-                    <div className="text-right">
-                      <div className="text-2xl font-bold text-white">
-                        {entry.totalStars}
+                    {/* Score & Expand */}
+                    <div className="text-right flex items-center gap-3">
+                      <div>
+                        <div className="text-2xl font-bold text-white">
+                          {entry.totalStars}
+                        </div>
+                        <div className="text-xs text-gray-300">stars</div>
                       </div>
-                      <div className="text-xs text-gray-300">stars</div>
+                      {isExpanded ? (
+                        <ChevronUp className="text-gray-400" size={20} />
+                      ) : (
+                        <ChevronDown className="text-gray-400" size={20} />
+                      )}
                     </div>
                   </div>
+
+                  {/* Expanded Details */}
+                  {isExpanded && (
+                    <div className="mt-4 pt-4 border-t border-white/20 space-y-3">
+                      {/* XP Progress Bar */}
+                      <div>
+                        <div className="flex justify-between text-xs text-gray-300 mb-1">
+                          <span>Level Progress</span>
+                          <span>{xpToNextLevel} XP to Level {entry.level + 1}</span>
+                        </div>
+                        <div className="h-2 bg-black/30 rounded-full overflow-hidden">
+                          <div
+                            className="h-full bg-gradient-to-r from-cyber-purple to-cyber-pink transition-all"
+                            style={{ width: `${xpProgress}%` }}
+                          />
+                        </div>
+                      </div>
+
+                      {/* Detailed Stats Grid */}
+                      <div className="grid grid-cols-2 gap-3">
+                        {/* Total Tasks */}
+                        <div className="bg-black/20 rounded-lg p-3">
+                          <div className="flex items-center gap-2 text-blue-300 mb-1">
+                            <Target size={16} />
+                            <span className="text-xs font-medium">Total Tasks</span>
+                          </div>
+                          <div className="text-xl font-bold text-white">
+                            {entry.totalTasksCompleted}
+                          </div>
+                        </div>
+
+                        {/* Achievements */}
+                        <div className="bg-black/20 rounded-lg p-3">
+                          <div className="flex items-center gap-2 text-purple-300 mb-1">
+                            <Award size={16} />
+                            <span className="text-xs font-medium">Achievements</span>
+                          </div>
+                          <div className="text-xl font-bold text-white">
+                            {entry.achievementsUnlocked} / 10
+                          </div>
+                        </div>
+
+                        {/* Current Streak */}
+                        <div className="bg-black/20 rounded-lg p-3">
+                          <div className="flex items-center gap-2 text-orange-400 mb-1">
+                            <Flame size={16} />
+                            <span className="text-xs font-medium">Current Streak</span>
+                          </div>
+                          <div className="text-xl font-bold text-white">
+                            {entry.currentStreak} {entry.currentStreak === 1 ? 'day' : 'days'}
+                          </div>
+                        </div>
+
+                        {/* Longest Streak */}
+                        <div className="bg-black/20 rounded-lg p-3">
+                          <div className="flex items-center gap-2 text-red-400 mb-1">
+                            <TrendingUp size={16} />
+                            <span className="text-xs font-medium">Best Streak</span>
+                          </div>
+                          <div className="text-xl font-bold text-white">
+                            {entry.longestStreak} {entry.longestStreak === 1 ? 'day' : 'days'}
+                          </div>
+                        </div>
+
+                        {/* Weekly Completions */}
+                        <div className="bg-black/20 rounded-lg p-3">
+                          <div className="flex items-center gap-2 text-green-300 mb-1">
+                            <Calendar size={16} />
+                            <span className="text-xs font-medium">This Week</span>
+                          </div>
+                          <div className="text-xl font-bold text-white">
+                            {entry.weeklyCompletions}
+                          </div>
+                        </div>
+
+                        {/* Monthly Completions */}
+                        <div className="bg-black/20 rounded-lg p-3">
+                          <div className="flex items-center gap-2 text-cyan-300 mb-1">
+                            <Calendar size={16} />
+                            <span className="text-xs font-medium">This Month</span>
+                          </div>
+                          <div className="text-xl font-bold text-white">
+                            {entry.monthlyCompletions}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
               );
             })}
