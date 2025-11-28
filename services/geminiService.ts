@@ -12,7 +12,7 @@ const missionSchema: Schema = {
     },
     starsAwarded: {
       type: Type.INTEGER,
-      description: "Stars based on task completion: 3 stars = 90-100% (perfect), 2 stars = 80-89% (good effort), 1 star = 77-79% (minimal pass), 0 stars = under 77% (FAIL).",
+      description: "Stars based on task completion: 3 stars = 95-100% (perfect), 2 stars = 85-94% (good effort), 1 star = 75-84% (minimal pass), 0 stars = under 75% (FAIL).",
     },
     debrief: {
       type: Type.STRING,
@@ -53,14 +53,27 @@ export const verifyIntel = async (
     2. AFTER IMAGE (End): The submitted evidence of completion.
 
     PROTOCOL:
-    1. **ANTI-CHEAT / LOCATION CHECK**: ${isStartImageURL ? 'Skip location check as there is no Before image.' : 'Compare the background, furniture, and layout of the BEFORE and AFTER images. If they are NOT the same physical location, FAIL the mission immediately.'}
-    
-    2. **COMPLETION CHECK**: Analyze the AFTER image and estimate completion percentage (0-100%).
-       - Does it look clean, organized, and finished based on the mission description?
-       ${isStartImageURL ? '' : '- Compare it to the BEFORE image to ensure actual work was done (mess removed, bed made, etc.).'}
-       - Award stars based on completion: 90-100% = 3 stars, 80-89% = 2 stars, 77-79% = 1 star, under 77% = FAIL (0 stars, missionComplete = false).
+    1. **TASK TYPE ANALYSIS**: First, determine the nature of the mission: "${missionDescription}". Is it a CLEANING task, or a CREATIVE/ACTION task (e.g. "Read a book", "Workout", "Draw", "Code")?
 
-    3. **OUTPUT**: Your "debrief" must embody the personality described above completely.` },
+    2. **ANTI-CHEAT / RELEVANCE CHECK**: 
+       - **Cleaning**: ${isStartImageURL ? 'Skip location check.' : 'Compare background/layout. Must match.'}
+       - **Action/Creative**: Ensure the image provides *proof* of the specific task described. (e.g. A photo of a book for "Read", a sweaty selfie/watch stats for "Workout"). If the image is irrelevant, FAIL immediately.
+
+    3. **STRICT COMPLETION ANALYSIS**: Analyze the AFTER image with EXTREME SCRUTINY.
+       - **For CLEANING**: Look for dust, clutter, or "hidden" messes. Zero tolerance.
+       - **For ACTION/CREATIVE**: Assess the *quality* and *effort* visible. 
+         - Did they just take a picture of a blank page? (FAIL)
+         - Is the work finished? 
+         - Does it look like they put in genuine effort?
+       - **Comparison**: ${isStartImageURL ? '' : 'For cleaning, ensure the specific mess in the BEFORE image is gone.'}
+       
+    4. **SCORING (STRICT)**: Estimate completion percentage (0-100%) conservatively.
+       - 95-100%: **PERFECT**. Flawless execution. Showroom quality or impressive effort. (3 Stars)
+       - 85-94%: **GOOD**. Solid work, but minor improvements possible. (2 Stars)
+       - 75-84%: **PASSABLE**. Bare minimum effort to technically count. (1 Star)
+       - Under 75%: **FAIL**. Incomplete, lazy, or irrelevant. (0 Stars, missionComplete = false).
+
+    5. **OUTPUT**: Your "debrief" must embody the personality described above completely. If they failed or were lazy, roast them (if persona allows).` },
     {
       inlineData: {
         mimeType: 'image/jpeg',
