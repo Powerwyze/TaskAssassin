@@ -11,6 +11,7 @@ interface Props {
 export const Leaderboard: React.FC<Props> = ({ userId, friendIds, onClose }) => {
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -19,9 +20,16 @@ export const Leaderboard: React.FC<Props> = ({ userId, friendIds, onClose }) => 
 
   const loadLeaderboard = async () => {
     setLoading(true);
-    const data = await getFriendsLeaderboard(userId, friendIds);
-    setLeaderboard(data);
-    setLoading(false);
+    setError(null);
+    try {
+      const data = await getFriendsLeaderboard(userId, friendIds);
+      setLeaderboard(data);
+    } catch (error: any) {
+      console.error("Error loading leaderboard:", error);
+      setError("Failed to load leaderboard. Please try again.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const getRankColor = (index: number) => {
@@ -57,6 +65,8 @@ export const Leaderboard: React.FC<Props> = ({ userId, friendIds, onClose }) => 
 
         {loading ? (
           <div className="text-center text-cyber-cyan py-8">Loading leaderboard...</div>
+        ) : error ? (
+          <div className="text-center text-red-500 py-8">{error}</div>
         ) : leaderboard.length === 0 ? (
           <div className="text-center text-gray-400 py-8">
             <p>Add friends to see the leaderboard!</p>
@@ -73,11 +83,10 @@ export const Leaderboard: React.FC<Props> = ({ userId, friendIds, onClose }) => 
               return (
                 <div
                   key={entry.uid}
-                  className={`bg-gradient-to-r ${rankColor} rounded-lg p-4 border ${
-                    isCurrentUser
-                      ? 'border-cyber-cyan shadow-neon-cyan scale-105'
-                      : 'border-transparent'
-                  } transition-all`}
+                  className={`bg-gradient-to-r ${rankColor} rounded-lg p-4 border ${isCurrentUser
+                    ? 'border-cyber-cyan shadow-neon-cyan scale-105'
+                    : 'border-transparent'
+                    } transition-all`}
                 >
                   <div
                     className="flex items-center gap-4 cursor-pointer"

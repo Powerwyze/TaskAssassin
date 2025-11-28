@@ -255,7 +255,8 @@ export const getFriendsLeaderboard = async (uid: string, friendIds: string[]): P
   }
 
   // Add friends
-  for (const friendId of friendIds) {
+  // Add friends
+  const friendPromises = friendIds.map(async (friendId) => {
     const friendStats = await getUserStats(friendId);
     const friendProfileSnap = await get(ref(database, `users/${friendId}/profile`));
     const friendAchievementsSnap = await get(ref(database, `achievements/${friendId}`));
@@ -265,7 +266,7 @@ export const getFriendsLeaderboard = async (uid: string, friendIds: string[]): P
 
     if (friendProfileSnap.exists()) {
       const friendProfile = friendProfileSnap.val();
-      leaderboard.push({
+      return {
         uid: friendId,
         codename: friendProfile.codename,
         totalStars: friendStats.totalStars,
@@ -277,9 +278,15 @@ export const getFriendsLeaderboard = async (uid: string, friendIds: string[]): P
         monthlyCompletions: friendStats.monthlyCompletions,
         xp: friendStats.xp,
         achievementsUnlocked: friendAchievementsCount
-      });
+      };
     }
-  }
+    return null;
+  });
+
+  const friendsData = await Promise.all(friendPromises);
+  friendsData.forEach(friend => {
+    if (friend) leaderboard.push(friend);
+  });
 
   // Sort by total stars (descending)
   leaderboard.sort((a, b) => b.totalStars - a.totalStars);
