@@ -19,6 +19,8 @@ export interface Mission {
   stars: number;
   lastFeedback?: string;
   issuer?: string; // 'COMMAND' or Agent Codename
+  fromUid?: string;
+  toUid?: string;
 }
 
 export interface CameraCapture {

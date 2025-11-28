@@ -303,7 +303,7 @@ export const issueTask = async (
   startImage?: string
 ): Promise<string> => {
   const taskRef = push(ref(database, `tasks/${toUid}`));
-  await set(taskRef, {
+  const taskData = {
     id: taskRef.key,
     codename: title,
     briefing,
@@ -314,7 +314,20 @@ export const issueTask = async (
     issuer: issuerName,
     fromUid,
     timestamp: serverTimestamp()
-  });
+  };
+
+  await set(taskRef, taskData);
+
+  // Also track in sentTasks for the issuer
+  if (fromUid !== toUid) {
+    const sentTaskRef = ref(database, `sentTasks/${fromUid}/${taskRef.key}`);
+    await set(sentTaskRef, {
+      taskId: taskRef.key,
+      toUid: toUid,
+      timestamp: serverTimestamp()
+    });
+  }
+
   return taskRef.key!;
 };
 
@@ -338,6 +351,64 @@ export const subscribeTasks = (
   });
 
   return unsubscribe;
+};
+
+/**
+ * Subscribe to tasks sent BY the user
+ */
+export const subscribeSentTasks = (
+  uid: string,
+  callback: (tasks: any[]) => void
+): (() => void) => {
+  const sentRef = ref(database, `sentTasks/${uid}`);
+
+  // Keep track of active listeners for individual tasks
+  let taskUnsubscribes: (() => void)[] = [];
+
+  const unsubscribeSent = onValue(sentRef, (snapshot) => {
+    // 1. Clear old task listeners
+    taskUnsubscribes.forEach(unsub => unsub());
+    taskUnsubscribes = [];
+
+    if (!snapshot.exists()) {
+      callback([]);
+      return;
+    }
+
+    const sentItems: { toUid: string, taskId: string }[] = [];
+    snapshot.forEach(child => {
+      sentItems.push(child.val());
+    });
+
+    const tasksData: any[] = new Array(sentItems.length).fill(null);
+
+    if (sentItems.length === 0) {
+      callback([]);
+      return;
+    }
+
+    sentItems.forEach((item, index) => {
+      const taskRef = ref(database, `tasks/${item.toUid}/${item.taskId}`);
+      const unsub = onValue(taskRef, (taskSnap) => {
+        if (taskSnap.exists()) {
+          tasksData[index] = taskSnap.val();
+        } else {
+          // Task might have been deleted
+          tasksData[index] = null;
+        }
+
+        // Emit updated list, filtering out nulls (deleted or not yet loaded)
+        const currentTasks = tasksData.filter(t => t !== null);
+        callback(currentTasks);
+      });
+      taskUnsubscribes.push(unsub);
+    });
+  });
+
+  return () => {
+    unsubscribeSent();
+    taskUnsubscribes.forEach(unsub => unsub());
+  };
 };
 
 /**

@@ -20,6 +20,7 @@ import {
   subscribeFriendRequests,
   subscribeSentFriendRequests,
   subscribeTasks,
+  subscribeSentTasks,
   sendFriendRequest,
   acceptFriendRequest,
   declineFriendRequest,
@@ -74,6 +75,7 @@ const App: React.FC = () => {
   const [isLoadingAuth, setIsLoadingAuth] = useState(true);
 
   const [missions, setMissions] = useState<Mission[]>(INITIAL_MISSIONS);
+  const [sentTasks, setSentTasks] = useState<Mission[]>([]);
   const [activeMissionId, setActiveMissionId] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [lastResult, setLastResult] = useState<MissionResult | null>(null);
@@ -108,14 +110,14 @@ const App: React.FC = () => {
   });
 
   // Sorting State
-  const [sortFilter, setSortFilter] = useState<'ALL' | 'PENDING' | 'COMPLETED' | 'FAILED' | 'PROPOSED'>('ALL');
+  const [sortFilter, setSortFilter] = useState<'ALL' | 'PENDING' | 'COMPLETED' | 'FAILED' | 'PROPOSED' | 'SENT'>('ALL');
 
   const totalStars = missions.reduce((acc, m) => acc + m.stars, 0);
   const activeHandler = HANDLERS.find(h => h.id === userProfile.handlerId) || HANDLERS[0];
   const handlerDisplayName = userProfile.customHandlerName || activeHandler.name;
 
   // Filter missions based on sortFilter
-  const filteredMissions = missions.filter(m => {
+  const filteredMissions = sortFilter === 'SENT' ? sentTasks : missions.filter(m => {
     if (sortFilter === 'ALL') return true;
     return m.status === sortFilter;
   });
@@ -205,13 +207,22 @@ const App: React.FC = () => {
         const missionMap = new Map(prev.map(m => [m.id, m]));
 
         tasks.forEach(t => {
-          if (!missionMap.has(t.id)) {
-            missionMap.set(t.id, t);
-          }
+          missionMap.set(t.id, t); // Always overwrite with latest from server
         });
 
         return Array.from(missionMap.values());
       });
+    });
+
+    return () => unsubscribe();
+  }, [currentUserId]);
+
+  // Subscribe to Sent Tasks
+  useEffect(() => {
+    if (!currentUserId) return;
+
+    const unsubscribe = subscribeSentTasks(currentUserId, (tasks) => {
+      setSentTasks(tasks);
     });
 
     return () => unsubscribe();
@@ -605,6 +616,12 @@ const App: React.FC = () => {
           >
             SCHEDULED
           </button>
+          <button
+            onClick={() => setSortFilter('SENT')}
+            className={`px-3 py-1 rounded-full text-xs font-mono whitespace-nowrap ${sortFilter === 'SENT' ? 'bg-green-500 text-black' : 'bg-slate-800 text-slate-400'}`}
+          >
+            SENT
+          </button>
         </div>
 
         <div className="space-y-3 pb-24">
@@ -625,10 +642,11 @@ const App: React.FC = () => {
                 <div className="text-xs text-slate-500 font-mono mt-1 flex items-center gap-2">
                   <Calendar className="w-3 h-3" /> Due: {m.deadline || 'ASAP'}
                   {m.issuer && m.issuer !== 'COMMAND' && <span className="text-yellow-500 flex items-center gap-1"><UserCircle className="w-3 h-3" /> FROM: {m.issuer}</span>}
+                  {sortFilter === 'SENT' && <span className="text-blue-400 flex items-center gap-1 ml-2">STATUS: {m.status}</span>}
                 </div>
               </div>
               <div className="flex items-center gap-2 mt-3 sm:mt-0">
-                {m.status === 'PROPOSED' ? (
+                {m.status === 'PROPOSED' && sortFilter !== 'SENT' ? (
                   <button
                     onClick={() => handleAcceptProposedMission(m)}
                     className="px-3 py-2 rounded text-xs font-mono font-bold flex items-center gap-2 whitespace-nowrap bg-yellow-600 text-black hover:bg-yellow-500"
@@ -637,7 +655,7 @@ const App: React.FC = () => {
                   </button>
                 ) : (
                   <>
-                    {m.status === 'COMPLETED' && (
+                    {m.status === 'COMPLETED' && sortFilter !== 'SENT' && (
                       <button
                         onClick={() => handleRepeatMission(m)}
                         title="Repeat Goal"
@@ -646,16 +664,20 @@ const App: React.FC = () => {
                         <RotateCcw className="w-4 h-4" />
                       </button>
                     )}
-                    <button
-                      onClick={() => handleExecuteMission(m.id)}
-                      disabled={m.status === 'COMPLETED'}
-                      className={`px-3 py-2 rounded text-xs font-mono font-bold flex items-center gap-2 whitespace-nowrap ${m.status === 'COMPLETED'
-                        ? 'bg-slate-700 text-slate-500 cursor-not-allowed'
-                        : 'bg-slate-900 text-green-500 border border-green-500/30 hover:bg-green-500 hover:text-black'
-                        }`}
-                    >
-                      {m.status === 'COMPLETED' ? 'DONE' : 'START'}
-                    </button>
+
+                    {sortFilter !== 'SENT' && (
+                      <button
+                        onClick={() => handleExecuteMission(m.id)}
+                        disabled={m.status === 'COMPLETED'}
+                        className={`px-3 py-2 rounded text-xs font-mono font-bold flex items-center gap-2 whitespace-nowrap ${m.status === 'COMPLETED'
+                          ? 'bg-slate-700 text-slate-500 cursor-not-allowed'
+                          : 'bg-slate-900 text-green-500 border border-green-500/30 hover:bg-green-500 hover:text-black'
+                          }`}
+                      >
+                        {m.status === 'COMPLETED' ? 'DONE' : 'START'}
+                      </button>
+                    )}
+
                     <button
                       onClick={() => handleDeleteTask(m)}
                       title="Delete Goal"
