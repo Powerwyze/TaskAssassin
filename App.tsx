@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Crosshair, Wallet, Shield, Calendar, ArrowLeft, Check, MessageSquare, Settings, RotateCcw, UserCircle, Clock, Globe, AlertTriangle, HelpCircle, TrendingUp, Trophy, Flame, X } from 'lucide-react';
+import { Plus, Crosshair, Wallet, Shield, Calendar, ArrowLeft, Check, MessageSquare, Settings, RotateCcw, UserCircle, Clock, Globe, AlertTriangle, HelpCircle, TrendingUp, Trophy, Flame, X, Filter } from 'lucide-react';
 import SpyCamera from './components/SpyCamera';
 import MissionDossier from './components/MissionDossier';
 import LoginScreen from './components/LoginScreen';
@@ -107,9 +107,18 @@ const App: React.FC = () => {
     title: '', desc: '', date: '', img: null, recurrence: null
   });
 
+  // Sorting State
+  const [sortFilter, setSortFilter] = useState<'ALL' | 'PENDING' | 'COMPLETED' | 'FAILED' | 'PROPOSED'>('ALL');
+
   const totalStars = missions.reduce((acc, m) => acc + m.stars, 0);
   const activeHandler = HANDLERS.find(h => h.id === userProfile.handlerId) || HANDLERS[0];
   const handlerDisplayName = userProfile.customHandlerName || activeHandler.name;
+
+  // Filter missions based on sortFilter
+  const filteredMissions = missions.filter(m => {
+    if (sortFilter === 'ALL') return true;
+    return m.status === sortFilter;
+  });
 
   // Firebase Authentication Listener
   useEffect(() => {
@@ -242,667 +251,757 @@ const App: React.FC = () => {
 
     if (!newMissionData.title || !newMissionData.img) return;
 
-    // If logged in, save to Firebase
     if (currentUserId) {
       try {
-
-        const handleVerifyMission = async (evidenceBase64: string) => {
-          const mission = missions.find(m => m.id === activeMissionId);
-          if (!mission) return;
-
-          setIsProcessing(true);
-          setError(null);
-
-          try {
-            const result = await verifyIntel(
-              mission.briefing,
-              mission.startImage,
-              evidenceBase64,
-              activeHandler.systemPrompt,
-              userProfile.lifeGoal
-            );
-            setLastResult(result);
-
-            const updates = {
-              endImage: evidenceBase64,
-              status: result.missionComplete ? 'COMPLETED' : 'FAILED',
-              stars: result.missionComplete ? (mission.stars + result.starsAwarded) : mission.stars,
-              lastFeedback: result.debrief
-            };
-
-            if (currentUserId) {
-              await updateTask(currentUserId, mission.id, updates);
-
-              // Update gamification stats if task completed successfully
-              if (result.missionComplete) {
-                const prevLevel = userStats?.level || 1;
-                const newAchievements = await updateStatsOnTaskCompletion(currentUserId, result.starsAwarded);
-                // Stats subscription will handle the update
-
-                // Trigger celebration with confetti and sound
-                // We can check level up by comparing with new stats after a brief delay or just optimistically
-                celebrate(result.starsAwarded, soundEnabled, newAchievements, false); // Passing false for levelUp for now as we don't know yet
-              }
-            } else {
-              // Local update
-              const updatedMissions = missions.map(m => {
-                if (m.id === mission.id) {
-                  return { ...m, ...updates } as Mission;
-                }
-                return m;
-              });
-              setMissions(updatedMissions);
-              if (result.missionComplete) celebrate(result.starsAwarded, soundEnabled, [], false);
-            }
-
-            setView('DEBRIEF');
-          } catch (err: any) {
-            setError(err.message);
-          } finally {
-            setIsProcessing(false);
-          }
-        };
-
-        const handleTutorialClose = async () => {
-          setShowTutorial(false);
-          if (currentUserId) {
-            const updatedProfile = { ...userProfile, hasSeenTutorial: true };
-            setUserProfile(updatedProfile);
-            await updateUserProfile(currentUserId, updatedProfile);
-          }
-        };
-
-        const handleSendFriendRequest = async (userId: string, message?: string) => {
-          if (!currentUserId) return;
-          try {
-            await sendFriendRequest(currentUserId, userId, message);
-            alert(`Friend request sent.`);
-          } catch (error: any) {
-            alert(`Failed to send request: ${error.message}`);
-          }
-        };
-
-        const handleAcceptRequest = async (reqId: string) => {
-          if (!currentUserId) return;
-          const req = friendRequests.find(r => r.id === reqId);
-          if (req) {
-            try {
-              await acceptFriendRequest(currentUserId, reqId, req.fromUser.id);
-            } catch (error: any) {
-              alert(`Failed to accept request: ${error.message}`);
-            }
-          }
-        };
-
-        const handleDeclineRequest = async (reqId: string) => {
-          if (!currentUserId) return;
-          const req = friendRequests.find(r => r.id === reqId);
-          if (req) {
-            try {
-              await declineFriendRequest(currentUserId, reqId, req.fromUser.id);
-            } catch (error: any) {
-              alert(`Failed to decline request: ${error.message}`);
-            }
-          }
-        };
-
-        const handleUnfriend = async (userId: string) => {
-          if (!currentUserId) return;
-          try {
-            await removeFriend(currentUserId, userId);
-          } catch (error: any) {
-            alert(`Failed to remove friend: ${error.message}`);
-          }
-        };
-
-        const handleSendSocialMessage = async (toUserId: string, text: string) => {
-          if (!currentUserId) return;
-          try {
-            await sendMessage(currentUserId, toUserId, text);
-          } catch (error: any) {
-            alert(`Failed to send message: ${error.message}`);
-          }
-        };
-
-        const handleIssueSocialTask = async (toUserId: string, title: string, briefing: string, deadline: string) => {
-          if (!currentUserId) return;
-          try {
-            await issueTask(currentUserId, toUserId, title, briefing, deadline, userProfile.codename);
-            alert("Task issued successfully.");
-          } catch (error: any) {
-            alert(`Failed to issue task: ${error.message}`);
-          }
-        };
-
-        const handleAdminAccess = () => {
-          const username = prompt("ENTER ADMIN CREDENTIALS:\nUsername:");
-          if (username === 'admin') {
-            const password = prompt("Password:");
-            if (password === 'woody') {
-              setView('ADMIN');
-            } else {
-              alert("ACCESS DENIED. INCORRECT PASSWORD.");
-            }
-          } else {
-            alert("ACCESS DENIED. USER NOT RECOGNIZED.");
-          }
-        };
-
-        // --- VIEW RENDERERS ---
-
-        if (isLoadingAuth) {
-          return (
-            <div className="min-h-screen bg-[#0f172a] flex items-center justify-center">
-              <div className="text-center">
-                <div className="w-12 h-12 border-4 border-green-500 border-t-transparent rounded-full animate-spin mb-4 mx-auto"></div>
-                <div className="font-mono text-green-500 animate-pulse">CONNECTING...</div>
-              </div>
-            </div>
-          );
-        }
-
-        if (view === 'LOGIN') {
-          return <LoginScreen onLogin={handleLogin} />;
-        }
-
-        if (view === 'ADMIN') {
-          return <AdminPage onExit={() => setView('DASHBOARD')} />;
-        }
-
-        const renderDashboard = () => (
-          <div className="space-y-6 animate-in slide-in-from-left duration-300">
-            {/* Stats Bar */}
-            <div className="grid grid-cols-2 gap-4">
-              <div className="bg-gradient-to-br from-purple-900/40 to-slate-900/40 p-4 rounded-lg border border-purple-500/30 flex items-center gap-3 shadow-neon-purple">
-                <div className="p-2 bg-gradient-to-br from-cyber-purple to-cyber-pink rounded-full shadow-lg">
-                  <Shield className="w-6 h-6 text-white" />
-                </div>
-                <div>
-                  <div className="text-xs text-purple-300 font-mono uppercase">Level {userStats?.level || 1}</div>
-                  <div className="text-xl font-bold font-mono bg-gradient-to-r from-cyber-purple to-cyber-pink bg-clip-text text-transparent">{totalStars} STARS</div>
-                </div>
-              </div>
-              <div className="bg-gradient-to-br from-orange-900/40 to-slate-900/40 p-4 rounded-lg border border-orange-500/30 flex items-center gap-3 shadow-lg">
-                <div className="p-2 bg-gradient-to-br from-orange-500 to-red-500 rounded-full shadow-lg">
-                  <Flame className="w-6 h-6 text-white" />
-                </div>
-                <div>
-                  <div className="text-xs text-orange-300 font-mono uppercase">Streak</div>
-                  <div className="text-xl font-bold font-mono bg-gradient-to-r from-orange-400 to-red-400 bg-clip-text text-transparent">{userStats?.currentStreak || 0} DAYS</div>
-                </div>
-              </div>
-            </div>
-
-            {/* XP Progress Bar */}
-            {userStats && (
-              <div className="bg-gradient-to-br from-slate-900/60 to-purple-900/60 p-4 rounded-lg border border-cyber-purple/30">
-                <div className="flex justify-between text-sm mb-2">
-                  <span className="text-gray-300">XP Progress</span>
-                  <span className="text-cyber-cyan">{userStats.xp % 100}/100</span>
-                </div>
-                <div className="w-full bg-slate-800 rounded-full h-3 overflow-hidden border border-cyber-purple/30">
-                  <div
-                    className="h-full bg-gradient-to-r from-cyber-purple to-cyber-pink transition-all duration-500"
-                    style={{ width: `${userStats.xp % 100}%` }}
-                  />
-                </div>
-              </div>
-            )}
-
-            {/* Action Buttons */}
-            <div className="grid grid-cols-2 gap-3">
-              <button
-                onClick={() => setShowProgressDashboard(true)}
-                className="bg-gradient-to-r from-cyber-purple to-cyber-pink text-white py-3 px-4 rounded-lg font-bold flex items-center justify-center gap-2 hover:shadow-neon-purple transition-all"
-              >
-                <TrendingUp size={18} />
-                Progress
-              </button>
-              <button
-                onClick={() => setShowLeaderboard(true)}
-                className="bg-gradient-to-r from-cyber-cyan to-neon-green text-white py-3 px-4 rounded-lg font-bold flex items-center justify-center gap-2 hover:shadow-neon-cyan transition-all"
-              >
-                <Trophy size={18} />
-                Leaderboard
-              </button>
-            </div>
-
-            {/* Friends List (Mini) */}
-            {friends.length > 0 && (
-              <div className="bg-slate-900/50 border border-slate-700 rounded-lg p-3">
-                <h3 className="text-xs font-mono text-slate-400 mb-2 uppercase tracking-wider flex items-center gap-2">
-                  <Globe className="w-3 h-3" /> Active Friends
-                </h3>
-                <div className="flex gap-3 overflow-x-auto pb-2 custom-scrollbar">
-                  {friends.map(friend => (
-                    <div key={friend.id} className="flex flex-col items-center min-w-[60px] cursor-pointer" onClick={() => setView('SOCIAL')}>
-                      <div className="w-10 h-10 bg-slate-700 rounded-full overflow-hidden border border-slate-600 relative">
-                        {friend.avatar ? <img src={friend.avatar} className="w-full h-full object-cover" /> : <UserCircle className="w-full h-full text-slate-400 p-1" />}
-                        <div className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-green-500 rounded-full border border-slate-900"></div>
-                      </div>
-                      <span className="text-[10px] text-slate-300 font-mono mt-1 truncate w-full text-center">{friend.codename}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Mission List */}
-            <div>
-              <div className="flex justify-between items-center mb-4">
-                <h2 className="text-slate-400 font-mono text-sm uppercase tracking-wider">Active Goals</h2>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => setShowTutorial(true)}
-                    className="flex items-center gap-2 text-xs font-bold bg-slate-800 text-slate-300 hover:text-white px-3 py-2 rounded-lg font-mono transition-all border border-slate-700"
-                  >
-                    <HelpCircle className="w-4 h-4" />
-                    <span>GUIDE</span>
-                  </button>
-                  <button
-                    onClick={() => setView('CREATE_MISSION')}
-                    className="flex items-center gap-2 text-xs font-bold bg-gradient-to-r from-neon-green to-cyber-cyan hover:from-cyber-cyan hover:to-neon-green text-black px-4 py-2 rounded-lg font-mono transition-all shadow-neon-cyan"
-                  >
-                    <Plus className="w-4 h-4" /> NEW GOAL
-                  </button>
-                </div>
-              </div>
-
-              <div className="space-y-3 pb-24">
-                {missions.map(m => (
-                  <div key={m.id} className="bg-gradient-to-r from-slate-800/50 to-slate-900/50 border border-purple-500/30 hover:border-cyber-cyan hover:shadow-neon-cyan transition-all rounded-lg p-4 flex items-center justify-between group relative overflow-hidden">
-                    {/* Recurrence Badge */}
-                    {m.recurrence && (
-                      <div className="absolute top-0 right-0 bg-slate-700 text-slate-300 text-[10px] px-2 py-0.5 font-mono rounded-bl">
-                        {m.recurrence}
-                      </div>
-                    )}
-
-                    <div className="flex-1 min-w-0 mr-2">
-                      <div className="flex items-center gap-2">
-                        <h3 className="text-white font-mono font-bold truncate">{m.codename}</h3>
-                        {m.status === 'COMPLETED' && <Check className="w-4 h-4 text-green-500 flex-shrink-0" />}
-                      </div>
-                      <div className="text-xs text-slate-500 font-mono mt-1 flex items-center gap-2">
-                        <Calendar className="w-3 h-3" /> Due: {m.deadline || 'ASAP'}
-                        {m.issuer && m.issuer !== 'COMMAND' && <span className="text-yellow-500 flex items-center gap-1"><UserCircle className="w-3 h-3" /> FROM: {m.issuer}</span>}
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2 mt-3 sm:mt-0">
-                      {m.status === 'PROPOSED' ? (
-                        <button
-                          onClick={() => handleAcceptProposedMission(m)}
-                          className="px-3 py-2 rounded text-xs font-mono font-bold flex items-center gap-2 whitespace-nowrap bg-yellow-600 text-black hover:bg-yellow-500"
-                        >
-                          ACCEPT
-                        </button>
-                      ) : (
-                        <>
-                          {m.status === 'COMPLETED' && (
-                            <button
-                              onClick={() => handleRepeatMission(m)}
-                              title="Repeat Goal"
-                              className="p-2 bg-slate-700 hover:bg-slate-600 rounded text-slate-300"
-                            >
-                              <RotateCcw className="w-4 h-4" />
-                            </button>
-                          )}
-                          <button
-                            onClick={() => handleExecuteMission(m.id)}
-                            disabled={m.status === 'COMPLETED'}
-                            className={`px-3 py-2 rounded text-xs font-mono font-bold flex items-center gap-2 whitespace-nowrap ${m.status === 'COMPLETED'
-                              ? 'bg-slate-700 text-slate-500 cursor-not-allowed'
-                              : 'bg-slate-900 text-green-500 border border-green-500/30 hover:bg-green-500 hover:text-black'
-                              }`}
-                          >
-                            {m.status === 'COMPLETED' ? 'DONE' : 'START'}
-                          </button>
-                          <button
-                            onClick={() => handleDeleteTask(m)}
-                            title="Delete Goal"
-                            className="p-2 bg-slate-800 hover:bg-red-900/50 text-slate-500 hover:text-red-500 rounded border border-transparent hover:border-red-500/30 transition-all"
-                          >
-                            <X className="w-4 h-4" />
-                          </button>
-                        </>
-                      )}
-                    </div>
-                  </div>
-                ))}
-                {missions.length === 0 && (
-                  <div className="text-center p-8 text-slate-600 font-mono text-sm">
-                    NO ACTIVE GOALS. ASSIGN YOURSELF A TASK.
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
+        await issueTask(
+          currentUserId,
+          currentUserId,
+          newMissionData.title,
+          newMissionData.desc || newMissionData.title,
+          newMissionData.date,
+          'SELF',
+          'PENDING',
+          newMissionData.img || undefined
         );
+      } catch (e: any) {
+        alert('Failed to save mission: ' + e.message);
+        return;
+      }
+    } else {
+      const newMission: Mission = {
+        id: Date.now().toString(),
+        codename: newMissionData.title,
+        briefing: newMissionData.desc || newMissionData.title,
+        deadline: newMissionData.date,
+        startImage: newMissionData.img,
+        status: 'PENDING',
+        stars: 0,
+        recurrence: newMissionData.recurrence,
+        issuer: 'SELF'
+      };
+      setMissions(prev => [...prev, newMission]);
+    }
 
-        const renderCreateMission = () => (
-          <div className="space-y-6 animate-in slide-in-from-right duration-300 pb-24">
-            <div className="flex items-center gap-4 mb-6">
-              <button onClick={() => setView('DASHBOARD')} className="p-2 hover:bg-slate-800 rounded-full text-slate-400">
-                <ArrowLeft className="w-6 h-6" />
-              </button>
-              <h2 className="text-xl font-mono text-white">NEW GOAL</h2>
-            </div>
+    setView('DASHBOARD');
+    setNewMissionData({ title: '', desc: '', date: '', img: null, recurrence: null });
+  };
 
-            <div className="space-y-4">
-              <div>
-                <label className="block text-xs text-green-500 font-mono mb-1">TITLE</label>
-                <input
-                  type="text"
-                  value={newMissionData.title}
-                  onChange={e => setNewMissionData({ ...newMissionData, title: e.target.value })}
-                  className="w-full bg-slate-900 border border-slate-700 rounded p-3 text-white font-mono focus:border-green-500 focus:outline-none uppercase"
-                  placeholder="e.g. CLEAN ROOM"
-                />
-              </div>
+  const handleVerifyMission = async (evidenceBase64: string) => {
+    const mission = missions.find(m => m.id === activeMissionId);
+    if (!mission) return;
 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs text-green-500 font-mono mb-1">DEADLINE</label>
-                  <input
-                    type="date"
-                    value={newMissionData.date}
-                    onChange={e => setNewMissionData({ ...newMissionData, date: e.target.value })}
-                    className="w-full bg-slate-900 border border-slate-700 rounded p-3 text-white font-mono focus:border-green-500 focus:outline-none"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs text-green-500 font-mono mb-1">RECURRENCE</label>
-                  <select
-                    value={newMissionData.recurrence || ''}
-                    onChange={e => setNewMissionData({ ...newMissionData, recurrence: (e.target.value as any) || null })}
-                    className="w-full bg-slate-900 border border-slate-700 rounded p-3 text-white font-mono focus:border-green-500 focus:outline-none"
-                  >
-                    <option value="">ONE-TIME</option>
-                    <option value="WEEKLY">WEEKLY</option>
-                    <option value="MONTHLY">MONTHLY</option>
-                  </select>
-                </div>
-              </div>
+    setIsProcessing(true);
+    setError(null);
 
-              <div className="pt-2">
-                <label className="block text-xs text-green-500 font-mono mb-1 uppercase">Description of completed state:</label>
-                <textarea
-                  value={newMissionData.desc}
-                  onChange={e => setNewMissionData({ ...newMissionData, desc: e.target.value })}
-                  className="w-full bg-slate-900 border border-slate-700 rounded p-3 text-white font-mono focus:border-green-500 focus:outline-none h-24"
-                  placeholder="e.g. Bed made, desk clear, trash emptied..."
-                />
-              </div>
+    try {
+      const result = await verifyIntel(
+        mission.briefing,
+        mission.startImage,
+        evidenceBase64,
+        activeHandler.systemPrompt,
+        userProfile.lifeGoal
+      );
+      setLastResult(result);
 
-              <div className="pt-2">
-                <label className="block text-xs text-green-500 font-mono mb-2">STARTING PHOTO</label>
-                {newMissionData.img ? (
-                  <div className="relative">
-                    <img src={newMissionData.img} alt="Target" className="w-full h-48 object-cover rounded border border-green-500/50" />
-                    <button
-                      onClick={() => setNewMissionData({ ...newMissionData, img: null })}
-                      className="absolute top-2 right-2 bg-red-600 text-white text-xs px-2 py-1 rounded font-mono"
-                    >
-                      RETAKE
-                    </button>
-                  </div>
-                ) : (
-                  <SpyCamera
-                    label="TAKE_PHOTO"
-                    onCapture={(cap) => setNewMissionData({ ...newMissionData, img: cap.base64 })}
-                  />
-                )}
-              </div>
-
-              <button
-                onClick={() => handleCreateMission()}
-                disabled={!newMissionData.title || !newMissionData.img}
-                className="w-full bg-green-600 hover:bg-green-500 disabled:bg-slate-700 disabled:text-slate-500 text-black font-bold font-mono py-4 rounded mt-8"
-              >
-                START GOAL
-              </button>
-            </div>
-          </div>
-        );
-
-        const renderExecuteMission = () => {
-          const mission = missions.find(m => m.id === activeMissionId);
-          if (!mission) return null;
-
-          return (
-            <div className="space-y-6 animate-in slide-in-from-right duration-300 pb-24">
-              <div className="flex items-center gap-4 mb-2">
-                <button onClick={() => setView('DASHBOARD')} className="p-2 hover:bg-slate-800 rounded-full text-slate-400">
-                  <ArrowLeft className="w-6 h-6" />
-                </button>
-                <div>
-                  <h2 className="text-lg font-mono text-white uppercase">{mission.codename}</h2>
-                  <p className="text-xs text-slate-500 font-mono">STATUS: {mission.status}</p>
-                </div>
-              </div>
-
-              {/* Target Intel */}
-              <div className="bg-slate-800/50 border border-slate-700 rounded p-4">
-                <h3 className="text-xs font-mono text-green-500 mb-2">STARTING PHOTO</h3>
-                <img src={mission.startImage} alt="Target" className="w-full h-48 object-cover rounded opacity-80 border border-dashed border-slate-600" />
-                <p className="text-sm text-slate-400 mt-2 font-mono border-t border-slate-700 pt-2">
-                  "{mission.briefing}"
-                </p>
-              </div>
-
-              {isProcessing ? (
-                <div className="h-64 flex flex-col items-center justify-center border border-green-500/30 bg-black/50 rounded">
-                  <div className="w-12 h-12 border-4 border-green-500 border-t-transparent rounded-full animate-spin mb-4"></div>
-                  <div className="font-mono text-green-500 animate-pulse">REVIEWING...</div>
-                  <div className="font-mono text-xs text-slate-500 mt-2">CONNECTING TO {handlerDisplayName.toUpperCase()}</div>
-                </div>
-              ) : (
-                <div>
-                  <h3 className="text-xs font-mono text-red-500 mb-2">SUBMIT COMPLETED GOAL</h3>
-                  <SpyCamera
-                    label="TAKE_PHOTO"
-                    onCapture={(cap) => handleVerifyMission(cap.base64)}
-                  />
-                  {error && (
-                    <div className="mt-4 p-3 bg-red-900/30 border border-red-500 text-red-400 text-sm font-mono">
-                      ERROR: {error}
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-          );
-        };
-
-        return (
-          <div className="min-h-screen bg-[#0f172a] text-slate-200 font-sans selection:bg-green-500/30">
-            {/* Background Grid */}
-            <div className="fixed inset-0 bg-[linear-gradient(rgba(16,185,129,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(16,185,129,0.02)_1px,transparent_1px)] bg-[size:20px_20px] pointer-events-none z-0"></div>
-
-            {/* Header */}
-            {view !== 'LOGIN' && view !== 'ADMIN' && (
-              <header className="sticky top-0 z-50 bg-[#0f172a]/90 backdrop-blur-md border-b border-slate-800 px-4 py-3 flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 bg-gradient-to-br from-green-500 to-emerald-700 rounded flex items-center justify-center shadow-lg shadow-green-500/20">
-                    <Crosshair className="w-5 h-5 text-white" />
-                  </div>
-                  <h1 className="font-mono font-bold text-lg tracking-tighter text-white">
-                    TASK<span className="text-green-500">ASSASSIN</span>
-                  </h1>
-                </div>
-                <div className="flex items-center gap-3">
-                  <button
-                    onClick={() => setShowBugReport(true)}
-                    className="p-2 text-slate-500 hover:text-red-400 transition-colors"
-                    title="Report Bug"
-                  >
-                    <AlertTriangle className="w-5 h-5" />
-                  </button>
-                  <div className="flex items-center gap-2 bg-slate-800/50 px-3 py-1 rounded-full border border-slate-700">
-                    <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-                    <span className="text-xs font-mono text-green-500">{handlerDisplayName.toUpperCase()} ONLINE</span>
-                  </div>
-                </div>
-              </header>
-            )}
-
-            <main className="flex-1 max-w-md w-full mx-auto px-4 py-6 relative z-10 overflow-y-auto">
-              {view === 'DASHBOARD' && renderDashboard()}
-              {view === 'CREATE_MISSION' && renderCreateMission()}
-              {view === 'EXECUTE_MISSION' && renderExecuteMission()}
-              {view === 'DEBRIEF' && lastResult && (
-                <MissionDossier
-                  mission={missions.find(m => m.id === activeMissionId)}
-                  result={lastResult}
-                  onClose={() => {
-                    setLastResult(null);
-                    setView('DASHBOARD');
-                  }}
-                />
-              )}
-              {view === 'PROFILE' && (
-                <ProfileSettings
-                  userProfile={userProfile}
-                  handlers={HANDLERS}
-                  onUpdateProfile={setUserProfile}
-                  onComplete={async () => {
-                    if (currentUserId) {
-                      await updateUserProfile(currentUserId, userProfile);
-                    }
-                    setView('DASHBOARD');
-                  }}
-                  onLogout={handleLogout}
-                />
-              )}
-              {view === 'CHAT' && (
-                <TacticalChat
-                  persona={activeHandler}
-                  userLifeGoal={userProfile.lifeGoal}
-                  onAddMission={handleCreateMission}
-                />
-              )}
-              {view === 'SOCIAL' && (
-                <SocialHub
-                  userProfile={userProfile}
-                  currentUserId={currentUserId || ''}
-                  friends={friends}
-                  requests={friendRequests}
-                  sentRequests={sentFriendRequests}
-                  messages={socialMessages}
-                  mockUsers={allUsers}
-                  onSendRequest={handleSendFriendRequest}
-                  onAcceptRequest={handleAcceptRequest}
-                  onDeclineRequest={handleDeclineRequest}
-                  onUnfriend={handleUnfriend}
-                  onSendMessage={handleSendSocialMessage}
-                  onIssueTask={handleIssueSocialTask}
-                />
-              )}
-            </main>
-
-            {/* Navigation Bar */}
-            {view !== 'LOGIN' && view !== 'ADMIN' && (
-              <nav className="fixed bottom-0 left-0 right-0 bg-[#0f172a]/95 backdrop-blur border-t border-slate-800 z-50 pb-safe">
-                <div className="flex justify-around items-center p-2 max-w-md mx-auto">
-
-                  {/* Home Button */}
-                  <div className="relative group flex flex-col items-center">
-                    <div className="absolute bottom-full mb-3 hidden group-hover:block bg-slate-900 border border-green-500 text-green-500 text-[10px] px-3 py-1 rounded shadow-neon-green whitespace-nowrap font-mono z-50 pointer-events-none">
-                      HOME
-                    </div>
-                    <button
-                      onClick={() => setView('DASHBOARD')}
-                      className={`flex flex-col items-center gap-1 transition-all ${view === 'DASHBOARD' ? 'text-green-500 drop-shadow-[0_0_8px_rgba(34,197,94,0.8)]' : 'text-slate-500 hover:text-slate-300'}`}
-                    >
-                      <div className="relative">
-                        <Settings className="w-6 h-6" />
-                        {view === 'DASHBOARD' && <span className="absolute -top-1 -right-1 w-2 h-2 bg-green-500 rounded-full animate-ping" />}
-                      </div>
-                      <span className="text-[10px] font-mono">HOME</span>
-                    </button>
-                  </div>
-
-                  {/* Coach Button */}
-                  <div className="relative group flex flex-col items-center">
-                    <div className="absolute bottom-full mb-3 hidden group-hover:block bg-slate-900 border border-blue-500 text-blue-500 text-[10px] px-3 py-1 rounded shadow-neon-blue whitespace-nowrap font-mono z-50 pointer-events-none">
-                      COACH
-                    </div>
-                    <button
-                      onClick={() => setView('CHAT')}
-                      className={`flex flex-col items-center gap-1 transition-all ${view === 'CHAT' ? 'text-blue-500 drop-shadow-[0_0_8px_rgba(59,130,246,0.8)]' : 'text-slate-500 hover:text-slate-300'}`}
-                    >
-                      <MessageSquare className="w-6 h-6" />
-                      <span className="text-[10px] font-mono whitespace-nowrap">COACH</span>
-                    </button>
-                  </div>
-
-                  {/* Social Button */}
-                  <div className="relative group flex flex-col items-center">
-                    <div className="absolute bottom-full mb-3 hidden group-hover:block bg-slate-900 border border-neon-green text-neon-green text-[10px] px-3 py-1 rounded shadow-neon-green whitespace-nowrap font-mono z-50 pointer-events-none">
-                      SOCIAL
-                    </div>
-                    <button
-                      onClick={() => setView('SOCIAL')}
-                      className={`flex flex-col items-center gap-1 transition-all ${view === 'SOCIAL' ? 'text-neon-green drop-shadow-[0_0_8px_rgba(16,185,129,0.8)]' : 'text-slate-500 hover:text-slate-300'}`}
-                    >
-                      <Globe className="w-6 h-6" />
-                      <span className="text-[10px] font-mono">SOCIAL</span>
-                    </button>
-                  </div>
-
-                  {/* Me Button */}
-                  <div className="relative group flex flex-col items-center">
-                    <div className="absolute bottom-full mb-3 hidden group-hover:block bg-slate-900 border border-cyber-pink text-cyber-pink text-[10px] px-3 py-1 rounded shadow-neon-pink whitespace-nowrap font-mono z-50 pointer-events-none">
-                      PROFILE
-                    </div>
-                    <button
-                      onClick={() => setView('PROFILE')}
-                      className={`flex flex-col items-center gap-1 transition-all ${view === 'PROFILE' ? 'text-cyber-pink drop-shadow-[0_0_8px_rgba(236,72,153,0.8)]' : 'text-slate-500 hover:text-slate-300'}`}
-                    >
-                      <UserCircle className="w-6 h-6" />
-                      <span className="text-[10px] font-mono">ME</span>
-                    </button>
-                  </div>
-
-                </div>
-              </nav>
-            )}
-
-            {/* Overlays */}
-            <TutorialOverlay
-              isOpen={showTutorial}
-              onClose={handleTutorialClose}
-            />
-
-            <BugReportModal
-              isOpen={showBugReport}
-              onClose={() => setShowBugReport(false)}
-              currentUserId={currentUserId || 'anonymous'}
-            />
-
-            {/* Gamification Modals */}
-            {showProgressDashboard && currentUserId && (
-              <ProgressDashboard
-                userId={currentUserId}
-                onClose={() => setShowProgressDashboard(false)}
-              />
-            )}
-
-            {showLeaderboard && currentUserId && (
-              <Leaderboard
-                userId={currentUserId}
-                friendIds={friends.map(f => f.id)}
-                onClose={() => setShowLeaderboard(false)}
-              />
-            )}
-
-            {/* Admin Access Hidden Trigger */}
-            <div
-              className="fixed top-0 left-0 w-4 h-4 z-[100] cursor-default"
-              onDoubleClick={handleAdminAccess}
-            />
-          </div>
-        );
+      const updates = {
+        endImage: evidenceBase64,
+        status: result.missionComplete ? 'COMPLETED' : 'FAILED',
+        stars: result.missionComplete ? (mission.stars + result.starsAwarded) : mission.stars,
+        lastFeedback: result.debrief
       };
 
-      export default App;
+      if (currentUserId) {
+        await updateTask(currentUserId, mission.id, updates);
+
+        if (result.missionComplete) {
+          const newAchievements = await updateStatsOnTaskCompletion(currentUserId, result.starsAwarded);
+          celebrate(result.starsAwarded, soundEnabled, newAchievements, false);
+        }
+      } else {
+        const updatedMissions = missions.map(m => {
+          if (m.id === mission.id) {
+            return { ...m, ...updates } as Mission;
+          }
+          return m;
+        });
+        setMissions(updatedMissions);
+        if (result.missionComplete) celebrate(result.starsAwarded, soundEnabled, [], false);
+      }
+
+      setView('DEBRIEF');
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handleExecuteMission = (missionId: string) => {
+    setActiveMissionId(missionId);
+    setView('EXECUTE_MISSION');
+  };
+
+  const handleDeleteTask = async (mission: Mission) => {
+    if (!confirm('Delete this mission?')) return;
+    if (currentUserId) {
+      await deleteTask(currentUserId, mission.id);
+    } else {
+      setMissions(prev => prev.filter(m => m.id !== mission.id));
+    }
+  };
+
+  const handleRepeatMission = async (mission: Mission) => {
+    const updates = { status: 'PENDING', endImage: null, lastFeedback: null };
+    if (currentUserId) {
+      await updateTask(currentUserId, mission.id, updates);
+    } else {
+      setMissions(prev => prev.map(m => m.id === mission.id ? { ...m, ...updates } as Mission : m));
+    }
+  };
+
+  const handleAcceptProposedMission = async (mission: Mission) => {
+    const updates = { status: 'PENDING' };
+    if (currentUserId) {
+      await updateTask(currentUserId, mission.id, updates);
+    } else {
+      setMissions(prev => prev.map(m => m.id === mission.id ? { ...m, ...updates } as Mission : m));
+    }
+  };
+
+  const handleTutorialClose = async () => {
+    setShowTutorial(false);
+    if (currentUserId) {
+      const updatedProfile = { ...userProfile, hasSeenTutorial: true };
+      setUserProfile(updatedProfile);
+      await updateUserProfile(currentUserId, updatedProfile);
+    }
+  };
+
+  const handleSendFriendRequest = async (userId: string, message?: string) => {
+    if (!currentUserId) return;
+    try {
+      await sendFriendRequest(currentUserId, userId, message);
+      alert(`Friend request sent.`);
+    } catch (error: any) {
+      alert(`Failed to send request: ${error.message}`);
+    }
+  };
+
+  const handleAcceptRequest = async (reqId: string) => {
+    if (!currentUserId) return;
+    const req = friendRequests.find(r => r.id === reqId);
+    if (req) {
+      try {
+        await acceptFriendRequest(currentUserId, reqId, req.fromUser.id);
+      } catch (error: any) {
+        alert(`Failed to accept request: ${error.message}`);
+      }
+    }
+  };
+
+  const handleDeclineRequest = async (reqId: string) => {
+    if (!currentUserId) return;
+    const req = friendRequests.find(r => r.id === reqId);
+    if (req) {
+      try {
+        await declineFriendRequest(currentUserId, reqId, req.fromUser.id);
+      } catch (error: any) {
+        alert(`Failed to decline request: ${error.message}`);
+      }
+    }
+  };
+
+  const handleUnfriend = async (userId: string) => {
+    if (!currentUserId) return;
+    try {
+      await removeFriend(currentUserId, userId);
+    } catch (error: any) {
+      alert(`Failed to remove friend: ${error.message}`);
+    }
+  };
+
+  const handleSendSocialMessage = async (toUserId: string, text: string) => {
+    if (!currentUserId) return;
+    try {
+      await sendMessage(currentUserId, toUserId, text);
+    } catch (error: any) {
+      alert(`Failed to send message: ${error.message}`);
+    }
+  };
+
+  const handleIssueSocialTask = async (toUserId: string, title: string, briefing: string, deadline: string) => {
+    if (!currentUserId) return;
+    try {
+      await issueTask(currentUserId, toUserId, title, briefing, deadline, userProfile.codename);
+      alert("Task issued successfully.");
+    } catch (error: any) {
+      alert(`Failed to issue task: ${error.message}`);
+    }
+  };
+
+  const handleAdminAccess = () => {
+    const username = prompt("ENTER ADMIN CREDENTIALS:\nUsername:");
+    if (username === 'admin') {
+      const password = prompt("Password:");
+      if (password === 'woody') {
+        setView('ADMIN');
+      } else {
+        alert("ACCESS DENIED. INCORRECT PASSWORD.");
+      }
+    } else {
+      alert("ACCESS DENIED. USER NOT RECOGNIZED.");
+    }
+  };
+
+  // --- VIEW RENDERERS ---
+
+  if (isLoadingAuth) {
+    return (
+      <div className="min-h-screen bg-[#0f172a] flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-12 h-12 border-4 border-green-500 border-t-transparent rounded-full animate-spin mb-4 mx-auto"></div>
+          <div className="font-mono text-green-500 animate-pulse">CONNECTING...</div>
+        </div>
+      </div>
+    );
+  }
+
+  if (view === 'LOGIN') {
+    return <LoginScreen onLogin={handleLogin} />;
+  }
+
+  if (view === 'ADMIN') {
+    return <AdminPage onExit={() => setView('DASHBOARD')} />;
+  }
+
+  const renderDashboard = () => (
+    <div className="space-y-6 animate-in slide-in-from-left duration-300">
+      {/* Stats Bar */}
+      <div className="grid grid-cols-2 gap-4">
+        <div className="bg-gradient-to-br from-purple-900/40 to-slate-900/40 p-4 rounded-lg border border-purple-500/30 flex items-center gap-3 shadow-neon-purple">
+          <div className="p-2 bg-gradient-to-br from-cyber-purple to-cyber-pink rounded-full shadow-lg">
+            <Shield className="w-6 h-6 text-white" />
+          </div>
+          <div>
+            <div className="text-xs text-purple-300 font-mono uppercase">Level {userStats?.level || 1}</div>
+            <div className="text-xl font-bold font-mono bg-gradient-to-r from-cyber-purple to-cyber-pink bg-clip-text text-transparent">{totalStars} STARS</div>
+          </div>
+        </div>
+        <div className="bg-gradient-to-br from-orange-900/40 to-slate-900/40 p-4 rounded-lg border border-orange-500/30 flex items-center gap-3 shadow-lg">
+          <div className="p-2 bg-gradient-to-br from-orange-500 to-red-500 rounded-full shadow-lg">
+            <Flame className="w-6 h-6 text-white" />
+          </div>
+          <div>
+            <div className="text-xs text-orange-300 font-mono uppercase">Streak</div>
+            <div className="text-xl font-bold font-mono bg-gradient-to-r from-orange-400 to-red-400 bg-clip-text text-transparent">{userStats?.currentStreak || 0} DAYS</div>
+          </div>
+        </div>
+      </div>
+
+      {/* XP Progress Bar */}
+      {userStats && (
+        <div className="bg-gradient-to-br from-slate-900/60 to-purple-900/60 p-4 rounded-lg border border-cyber-purple/30">
+          <div className="flex justify-between text-sm mb-2">
+            <span className="text-gray-300">XP Progress</span>
+            <span className="text-cyber-cyan">{userStats.xp % 100}/100</span>
+          </div>
+          <div className="w-full bg-slate-800 rounded-full h-3 overflow-hidden border border-cyber-purple/30">
+            <div
+              className="h-full bg-gradient-to-r from-cyber-purple to-cyber-pink transition-all duration-500"
+              style={{ width: `${userStats.xp % 100}%` }}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Action Buttons */}
+      <div className="grid grid-cols-2 gap-3">
+        <button
+          onClick={() => setShowProgressDashboard(true)}
+          className="bg-gradient-to-r from-cyber-purple to-cyber-pink text-white py-3 px-4 rounded-lg font-bold flex items-center justify-center gap-2 hover:shadow-neon-purple transition-all"
+        >
+          <TrendingUp size={18} />
+          Progress
+        </button>
+        <button
+          onClick={() => setShowLeaderboard(true)}
+          className="bg-gradient-to-r from-cyber-cyan to-neon-green text-white py-3 px-4 rounded-lg font-bold flex items-center justify-center gap-2 hover:shadow-neon-cyan transition-all"
+        >
+          <Trophy size={18} />
+          Leaderboard
+        </button>
+      </div>
+
+      {/* Friends List (Mini) */}
+      {friends.length > 0 && (
+        <div className="bg-slate-900/50 border border-slate-700 rounded-lg p-3">
+          <h3 className="text-xs font-mono text-slate-400 mb-2 uppercase tracking-wider flex items-center gap-2">
+            <Globe className="w-3 h-3" /> Active Friends
+          </h3>
+          <div className="flex gap-3 overflow-x-auto pb-2 custom-scrollbar">
+            {friends.map(friend => (
+              <div key={friend.id} className="flex flex-col items-center min-w-[60px] cursor-pointer" onClick={() => setView('SOCIAL')}>
+                <div className="w-10 h-10 bg-slate-700 rounded-full overflow-hidden border border-slate-600 relative">
+                  {friend.avatar ? <img src={friend.avatar} className="w-full h-full object-cover" /> : <UserCircle className="w-full h-full text-slate-400 p-1" />}
+                  <div className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-green-500 rounded-full border border-slate-900"></div>
+                </div>
+                <span className="text-[10px] text-slate-300 font-mono mt-1 truncate w-full text-center">{friend.codename}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Mission List */}
+      <div>
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-slate-400 font-mono text-sm uppercase tracking-wider">Active Goals</h2>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setShowTutorial(true)}
+              className="flex items-center gap-2 text-xs font-bold bg-slate-800 text-slate-300 hover:text-white px-3 py-2 rounded-lg font-mono transition-all border border-slate-700"
+            >
+              <HelpCircle className="w-4 h-4" />
+              <span>GUIDE</span>
+            </button>
+            <button
+              onClick={() => setView('CREATE_MISSION')}
+              className="flex items-center gap-2 text-xs font-bold bg-gradient-to-r from-neon-green to-cyber-cyan hover:from-cyber-cyan hover:to-neon-green text-black px-4 py-2 rounded-lg font-mono transition-all shadow-neon-cyan"
+            >
+              <Plus className="w-4 h-4" /> NEW GOAL
+            </button>
+          </div>
+        </div>
+
+        {/* Sorting Controls */}
+        <div className="flex gap-2 mb-4 overflow-x-auto pb-2">
+          <button
+            onClick={() => setSortFilter('ALL')}
+            className={`px-3 py-1 rounded-full text-xs font-mono whitespace-nowrap ${sortFilter === 'ALL' ? 'bg-green-500 text-black' : 'bg-slate-800 text-slate-400'}`}
+          >
+            ALL
+          </button>
+          <button
+            onClick={() => setSortFilter('PENDING')}
+            className={`px-3 py-1 rounded-full text-xs font-mono whitespace-nowrap ${sortFilter === 'PENDING' ? 'bg-green-500 text-black' : 'bg-slate-800 text-slate-400'}`}
+          >
+            EXECUTE
+          </button>
+          <button
+            onClick={() => setSortFilter('COMPLETED')}
+            className={`px-3 py-1 rounded-full text-xs font-mono whitespace-nowrap ${sortFilter === 'COMPLETED' ? 'bg-green-500 text-black' : 'bg-slate-800 text-slate-400'}`}
+          >
+            EXECUTED
+          </button>
+          <button
+            onClick={() => setSortFilter('FAILED')}
+            className={`px-3 py-1 rounded-full text-xs font-mono whitespace-nowrap ${sortFilter === 'FAILED' ? 'bg-green-500 text-black' : 'bg-slate-800 text-slate-400'}`}
+          >
+            FAILED
+          </button>
+          <button
+            onClick={() => setSortFilter('PROPOSED')}
+            className={`px-3 py-1 rounded-full text-xs font-mono whitespace-nowrap ${sortFilter === 'PROPOSED' ? 'bg-green-500 text-black' : 'bg-slate-800 text-slate-400'}`}
+          >
+            SCHEDULED
+          </button>
+        </div>
+
+        <div className="space-y-3 pb-24">
+          {filteredMissions.map(m => (
+            <div key={m.id} className="bg-gradient-to-r from-slate-800/50 to-slate-900/50 border border-purple-500/30 hover:border-cyber-cyan hover:shadow-neon-cyan transition-all rounded-lg p-4 flex items-center justify-between group relative overflow-hidden">
+              {/* Recurrence Badge */}
+              {m.recurrence && (
+                <div className="absolute top-0 right-0 bg-slate-700 text-slate-300 text-[10px] px-2 py-0.5 font-mono rounded-bl">
+                  {m.recurrence}
+                </div>
+              )}
+
+              <div className="flex-1 min-w-0 mr-2">
+                <div className="flex items-center gap-2">
+                  <h3 className="text-white font-mono font-bold truncate">{m.codename}</h3>
+                  {m.status === 'COMPLETED' && <Check className="w-4 h-4 text-green-500 flex-shrink-0" />}
+                </div>
+                <div className="text-xs text-slate-500 font-mono mt-1 flex items-center gap-2">
+                  <Calendar className="w-3 h-3" /> Due: {m.deadline || 'ASAP'}
+                  {m.issuer && m.issuer !== 'COMMAND' && <span className="text-yellow-500 flex items-center gap-1"><UserCircle className="w-3 h-3" /> FROM: {m.issuer}</span>}
+                </div>
+              </div>
+              <div className="flex items-center gap-2 mt-3 sm:mt-0">
+                {m.status === 'PROPOSED' ? (
+                  <button
+                    onClick={() => handleAcceptProposedMission(m)}
+                    className="px-3 py-2 rounded text-xs font-mono font-bold flex items-center gap-2 whitespace-nowrap bg-yellow-600 text-black hover:bg-yellow-500"
+                  >
+                    ACCEPT
+                  </button>
+                ) : (
+                  <>
+                    {m.status === 'COMPLETED' && (
+                      <button
+                        onClick={() => handleRepeatMission(m)}
+                        title="Repeat Goal"
+                        className="p-2 bg-slate-700 hover:bg-slate-600 rounded text-slate-300"
+                      >
+                        <RotateCcw className="w-4 h-4" />
+                      </button>
+                    )}
+                    <button
+                      onClick={() => handleExecuteMission(m.id)}
+                      disabled={m.status === 'COMPLETED'}
+                      className={`px-3 py-2 rounded text-xs font-mono font-bold flex items-center gap-2 whitespace-nowrap ${m.status === 'COMPLETED'
+                        ? 'bg-slate-700 text-slate-500 cursor-not-allowed'
+                        : 'bg-slate-900 text-green-500 border border-green-500/30 hover:bg-green-500 hover:text-black'
+                        }`}
+                    >
+                      {m.status === 'COMPLETED' ? 'DONE' : 'START'}
+                    </button>
+                    <button
+                      onClick={() => handleDeleteTask(m)}
+                      title="Delete Goal"
+                      className="p-2 bg-slate-800 hover:bg-red-900/50 text-slate-500 hover:text-red-500 rounded border border-transparent hover:border-red-500/30 transition-all"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </>
+                )}
+              </div>
+            </div>
+          ))}
+          {filteredMissions.length === 0 && (
+            <div className="text-center p-8 text-slate-600 font-mono text-sm">
+              NO GOALS FOUND.
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+
+  const renderCreateMission = () => (
+    <div className="space-y-6 animate-in slide-in-from-right duration-300 pb-24">
+      <div className="flex items-center gap-4 mb-6">
+        <button onClick={() => setView('DASHBOARD')} className="p-2 hover:bg-slate-800 rounded-full text-slate-400">
+          <ArrowLeft className="w-6 h-6" />
+        </button>
+        <h2 className="text-xl font-mono text-white">NEW GOAL</h2>
+      </div>
+
+      <div className="space-y-4">
+        <div>
+          <label className="block text-xs text-green-500 font-mono mb-1">TITLE</label>
+          <input
+            type="text"
+            value={newMissionData.title}
+            onChange={e => setNewMissionData({ ...newMissionData, title: e.target.value })}
+            className="w-full bg-slate-900 border border-slate-700 rounded p-3 text-white font-mono focus:border-green-500 focus:outline-none uppercase"
+            placeholder="e.g. CLEAN ROOM"
+          />
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className="block text-xs text-green-500 font-mono mb-1">DEADLINE</label>
+            <input
+              type="date"
+              value={newMissionData.date}
+              onChange={e => setNewMissionData({ ...newMissionData, date: e.target.value })}
+              className="w-full bg-slate-900 border border-slate-700 rounded p-3 text-white font-mono focus:border-green-500 focus:outline-none"
+            />
+          </div>
+          <div>
+            <label className="block text-xs text-green-500 font-mono mb-1">RECURRENCE</label>
+            <select
+              value={newMissionData.recurrence || ''}
+              onChange={e => setNewMissionData({ ...newMissionData, recurrence: (e.target.value as any) || null })}
+              className="w-full bg-slate-900 border border-slate-700 rounded p-3 text-white font-mono focus:border-green-500 focus:outline-none"
+            >
+              <option value="">ONE-TIME</option>
+              <option value="WEEKLY">WEEKLY</option>
+              <option value="MONTHLY">MONTHLY</option>
+            </select>
+          </div>
+        </div>
+
+        <div className="pt-2">
+          <label className="block text-xs text-green-500 font-mono mb-1 uppercase">Description of completed state:</label>
+          <textarea
+            value={newMissionData.desc}
+            onChange={e => setNewMissionData({ ...newMissionData, desc: e.target.value })}
+            className="w-full bg-slate-900 border border-slate-700 rounded p-3 text-white font-mono focus:border-green-500 focus:outline-none h-24"
+            placeholder="e.g. Bed made, desk clear, trash emptied..."
+          />
+        </div>
+
+        <div className="pt-2">
+          <label className="block text-xs text-green-500 font-mono mb-2">STARTING PHOTO</label>
+          {newMissionData.img ? (
+            <div className="relative">
+              <img src={newMissionData.img} alt="Target" className="w-full h-48 object-cover rounded border border-green-500/50" />
+              <button
+                onClick={() => setNewMissionData({ ...newMissionData, img: null })}
+                className="absolute top-2 right-2 bg-red-600 text-white text-xs px-2 py-1 rounded font-mono"
+              >
+                RETAKE
+              </button>
+            </div>
+          ) : (
+            <SpyCamera
+              label="TAKE_PHOTO"
+              onCapture={(cap) => setNewMissionData({ ...newMissionData, img: cap.base64 })}
+            />
+          )}
+        </div>
+
+        <button
+          onClick={() => handleCreateMission()}
+          disabled={!newMissionData.title || !newMissionData.img}
+          className="w-full bg-green-600 hover:bg-green-500 disabled:bg-slate-700 disabled:text-slate-500 text-black font-bold font-mono py-4 rounded mt-8"
+        >
+          START GOAL
+        </button>
+      </div>
+    </div>
+  );
+
+  const renderExecuteMission = () => {
+    const mission = missions.find(m => m.id === activeMissionId);
+    if (!mission) return null;
+
+    return (
+      <div className="space-y-6 animate-in slide-in-from-right duration-300 pb-24">
+        <div className="flex items-center gap-4 mb-2">
+          <button onClick={() => setView('DASHBOARD')} className="p-2 hover:bg-slate-800 rounded-full text-slate-400">
+            <ArrowLeft className="w-6 h-6" />
+          </button>
+          <div>
+            <h2 className="text-lg font-mono text-white uppercase">{mission.codename}</h2>
+            <p className="text-xs text-slate-500 font-mono">STATUS: {mission.status}</p>
+          </div>
+        </div>
+
+        {/* Target Intel */}
+        <div className="bg-slate-800/50 border border-slate-700 rounded p-4">
+          <h3 className="text-xs font-mono text-green-500 mb-2">STARTING PHOTO</h3>
+          <img src={mission.startImage} alt="Target" className="w-full h-48 object-cover rounded opacity-80 border border-dashed border-slate-600" />
+          <p className="text-sm text-slate-400 mt-2 font-mono border-t border-slate-700 pt-2">
+            "{mission.briefing}"
+          </p>
+        </div>
+
+        {isProcessing ? (
+          <div className="h-64 flex flex-col items-center justify-center border border-green-500/30 bg-black/50 rounded">
+            <div className="w-12 h-12 border-4 border-green-500 border-t-transparent rounded-full animate-spin mb-4"></div>
+            <div className="font-mono text-green-500 animate-pulse">REVIEWING...</div>
+            <div className="font-mono text-xs text-slate-500 mt-2">CONNECTING TO {handlerDisplayName.toUpperCase()}</div>
+          </div>
+        ) : (
+          <div>
+            <h3 className="text-xs font-mono text-red-500 mb-2">SUBMIT COMPLETED GOAL</h3>
+            <SpyCamera
+              label="TAKE_PHOTO"
+              onCapture={(cap) => handleVerifyMission(cap.base64)}
+            />
+            {error && (
+              <div className="mt-4 p-3 bg-red-900/30 border border-red-500 text-red-400 text-sm font-mono">
+                ERROR: {error}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  return (
+    <div className="min-h-screen bg-[#0f172a] text-slate-200 font-sans selection:bg-green-500/30">
+      {/* Background Grid */}
+      <div className="fixed inset-0 bg-[linear-gradient(rgba(16,185,129,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(16,185,129,0.02)_1px,transparent_1px)] bg-[size:20px_20px] pointer-events-none z-0"></div>
+
+      {/* Header */}
+      {view !== 'LOGIN' && view !== 'ADMIN' && (
+        <header className="sticky top-0 z-50 bg-[#0f172a]/90 backdrop-blur-md border-b border-slate-800 px-4 py-3 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 bg-gradient-to-br from-green-500 to-emerald-700 rounded flex items-center justify-center shadow-lg shadow-green-500/20">
+              <Crosshair className="w-5 h-5 text-white" />
+            </div>
+            <h1 className="font-mono font-bold text-lg tracking-tighter text-white">
+              TASK<span className="text-green-500">ASSASSIN</span>
+            </h1>
+          </div>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setShowBugReport(true)}
+              className="p-2 text-slate-500 hover:text-red-400 transition-colors"
+              title="Report Bug"
+            >
+              <AlertTriangle className="w-5 h-5" />
+            </button>
+            <div className="flex items-center gap-2 bg-slate-800/50 px-3 py-1 rounded-full border border-slate-700">
+              <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+              <span className="text-xs font-mono text-green-500">{handlerDisplayName.toUpperCase()} ONLINE</span>
+            </div>
+          </div>
+        </header>
+      )}
+
+      <main className="flex-1 max-w-md w-full mx-auto px-4 py-6 relative z-10 overflow-y-auto">
+        {view === 'DASHBOARD' && renderDashboard()}
+        {view === 'CREATE_MISSION' && renderCreateMission()}
+        {view === 'EXECUTE_MISSION' && renderExecuteMission()}
+        {view === 'DEBRIEF' && lastResult && (
+          <MissionDossier
+            mission={missions.find(m => m.id === activeMissionId)}
+            result={lastResult}
+            onClose={() => {
+              setLastResult(null);
+              setView('DASHBOARD');
+            }}
+          />
+        )}
+        {view === 'PROFILE' && (
+          <ProfileSettings
+            userProfile={userProfile}
+            handlers={HANDLERS}
+            onUpdateProfile={setUserProfile}
+            onComplete={async () => {
+              if (currentUserId) {
+                await updateUserProfile(currentUserId, userProfile);
+              }
+              setView('DASHBOARD');
+            }}
+            onLogout={handleLogout}
+          />
+        )}
+        {view === 'CHAT' && (
+          <TacticalChat
+            persona={activeHandler}
+            userLifeGoal={userProfile.lifeGoal}
+            onAddMission={handleCreateMission}
+          />
+        )}
+        {view === 'SOCIAL' && (
+          <SocialHub
+            userProfile={userProfile}
+            currentUserId={currentUserId || ''}
+            friends={friends}
+            requests={friendRequests}
+            sentRequests={sentFriendRequests}
+            messages={socialMessages}
+            mockUsers={allUsers}
+            onSendRequest={handleSendFriendRequest}
+            onAcceptRequest={handleAcceptRequest}
+            onDeclineRequest={handleDeclineRequest}
+            onUnfriend={handleUnfriend}
+            onSendMessage={handleSendSocialMessage}
+            onIssueTask={handleIssueSocialTask}
+          />
+        )}
+      </main>
+
+      {/* Navigation Bar */}
+      {view !== 'LOGIN' && view !== 'ADMIN' && (
+        <nav className="fixed bottom-0 left-0 right-0 bg-[#0f172a]/95 backdrop-blur border-t border-slate-800 z-50 pb-safe">
+          <div className="flex justify-around items-center p-2 max-w-md mx-auto">
+
+            {/* Home Button */}
+            <div className="relative group flex flex-col items-center">
+              <div className="absolute bottom-full mb-3 hidden group-hover:block bg-slate-900 border border-green-500 text-green-500 text-[10px] px-3 py-1 rounded shadow-neon-green whitespace-nowrap font-mono z-50 pointer-events-none">
+                HOME
+              </div>
+              <button
+                onClick={() => setView('DASHBOARD')}
+                className={`flex flex-col items-center gap-1 transition-all ${view === 'DASHBOARD' ? 'text-green-500 drop-shadow-[0_0_8px_rgba(34,197,94,0.8)]' : 'text-slate-500 hover:text-slate-300'}`}
+              >
+                <div className="relative">
+                  <Settings className="w-6 h-6" />
+                  {view === 'DASHBOARD' && <span className="absolute -top-1 -right-1 w-2 h-2 bg-green-500 rounded-full animate-ping" />}
+                </div>
+                <span className="text-[10px] font-mono">HOME</span>
+              </button>
+            </div>
+
+            {/* Coach Button */}
+            <div className="relative group flex flex-col items-center">
+              <div className="absolute bottom-full mb-3 hidden group-hover:block bg-slate-900 border border-blue-500 text-blue-500 text-[10px] px-3 py-1 rounded shadow-neon-blue whitespace-nowrap font-mono z-50 pointer-events-none">
+                COACH
+              </div>
+              <button
+                onClick={() => setView('CHAT')}
+                className={`flex flex-col items-center gap-1 transition-all ${view === 'CHAT' ? 'text-blue-500 drop-shadow-[0_0_8px_rgba(59,130,246,0.8)]' : 'text-slate-500 hover:text-slate-300'}`}
+              >
+                <MessageSquare className="w-6 h-6" />
+                <span className="text-[10px] font-mono whitespace-nowrap">COACH</span>
+              </button>
+            </div>
+
+            {/* Social Button */}
+            <div className="relative group flex flex-col items-center">
+              <div className="absolute bottom-full mb-3 hidden group-hover:block bg-slate-900 border border-neon-green text-neon-green text-[10px] px-3 py-1 rounded shadow-neon-green whitespace-nowrap font-mono z-50 pointer-events-none">
+                SOCIAL
+              </div>
+              <button
+                onClick={() => setView('SOCIAL')}
+                className={`flex flex-col items-center gap-1 transition-all ${view === 'SOCIAL' ? 'text-neon-green drop-shadow-[0_0_8px_rgba(16,185,129,0.8)]' : 'text-slate-500 hover:text-slate-300'}`}
+              >
+                <Globe className="w-6 h-6" />
+                <span className="text-[10px] font-mono">SOCIAL</span>
+              </button>
+            </div>
+
+            {/* Me Button */}
+            <div className="relative group flex flex-col items-center">
+              <div className="absolute bottom-full mb-3 hidden group-hover:block bg-slate-900 border border-cyber-pink text-cyber-pink text-[10px] px-3 py-1 rounded shadow-neon-pink whitespace-nowrap font-mono z-50 pointer-events-none">
+                PROFILE
+              </div>
+              <button
+                onClick={() => setView('PROFILE')}
+                className={`flex flex-col items-center gap-1 transition-all ${view === 'PROFILE' ? 'text-cyber-pink drop-shadow-[0_0_8px_rgba(236,72,153,0.8)]' : 'text-slate-500 hover:text-slate-300'}`}
+              >
+                <UserCircle className="w-6 h-6" />
+                <span className="text-[10px] font-mono">ME</span>
+              </button>
+            </div>
+
+          </div>
+        </nav>
+      )}
+
+      {/* Overlays */}
+      <TutorialOverlay
+        isOpen={showTutorial}
+        onClose={handleTutorialClose}
+      />
+
+      <BugReportModal
+        isOpen={showBugReport}
+        onClose={() => setShowBugReport(false)}
+        currentUserId={currentUserId || 'anonymous'}
+      />
+
+      {/* Gamification Modals */}
+      {showProgressDashboard && currentUserId && (
+        <ProgressDashboard
+          userId={currentUserId}
+          onClose={() => setShowProgressDashboard(false)}
+        />
+      )}
+
+      {showLeaderboard && currentUserId && (
+        <Leaderboard
+          userId={currentUserId}
+          friendIds={friends.map(f => f.id)}
+          onClose={() => setShowLeaderboard(false)}
+        />
+      )}
+
+      {/* Admin Access Hidden Trigger */}
+      <div
+        className="fixed top-0 left-0 w-4 h-4 z-[100] cursor-default"
+        onDoubleClick={handleAdminAccess}
+      />
+    </div>
+  );
+};
+
+export default App;

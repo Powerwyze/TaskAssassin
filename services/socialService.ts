@@ -299,21 +299,23 @@ export const issueTask = async (
   briefing: string,
   deadline: string,
   issuerName: string,
-  status: 'PROPOSED' | 'PENDING' = 'PROPOSED'
-): Promise<void> => {
+  status: 'PROPOSED' | 'PENDING' = 'PROPOSED',
+  startImage?: string
+): Promise<string> => {
   const taskRef = push(ref(database, `tasks/${toUid}`));
   await set(taskRef, {
     id: taskRef.key,
     codename: title,
     briefing,
     deadline,
-    startImage: 'https://placehold.co/400x300/1e293b/ef4444?text=ASSIGNED+TASK',
+    startImage: startImage || 'https://placehold.co/400x300/1e293b/ef4444?text=ASSIGNED+TASK',
     status,
     stars: 0,
     issuer: issuerName,
     fromUid,
     timestamp: serverTimestamp()
   });
+  return taskRef.key!;
 };
 
 /**
