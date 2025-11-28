@@ -3,6 +3,32 @@ import { MissionResult, ChatMessage } from "../types";
 
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
+// --- AGENT 1: THE DETECTIVE (Anti-Cheat & Facts) ---
+const detectiveSchema: Schema = {
+  type: Type.OBJECT,
+  properties: {
+    isCleaningTask: { type: Type.BOOLEAN, description: "True if the user is supposed to clean or remove something." },
+    targetIdentified: { type: Type.STRING, description: "The specific object/mess to be removed (e.g. 'bottles', 'laundry')." },
+    locationMatch: { type: Type.BOOLEAN, description: "True if Before/After images are the same physical room." },
+    targetRemoved: { type: Type.BOOLEAN, description: "True if the target object is GONE from the After image." },
+    suspiciousActivity: { type: Type.STRING, description: "Any signs of cheating (e.g. different lighting, cropped photo). Null if clean." }
+  },
+  required: ["isCleaningTask", "targetIdentified", "locationMatch", "targetRemoved"]
+};
+
+// --- AGENT 2: THE INSPECTOR (Quality Control) ---
+const inspectorSchema: Schema = {
+  type: Type.OBJECT,
+  properties: {
+    cleanlinessScore: { type: Type.INTEGER, description: "0-100 score based on visual order and cleanliness." },
+    remainingClutter: { type: Type.ARRAY, items: { type: Type.STRING }, description: "List of specific items or dust still visible." },
+    effortRating: { type: Type.STRING, enum: ["LOW", "MEDIUM", "HIGH", "IMPRESSIVE"], description: "Visual assessment of effort." },
+    visualDefects: { type: Type.STRING, description: "Description of any imperfections (wrinkles, stains, bad framing)." }
+  },
+  required: ["cleanlinessScore", "remainingClutter", "effortRating", "visualDefects"]
+};
+
+// --- AGENT 3: THE HANDLER (Synthesis) ---
 const missionSchema: Schema = {
   type: Type.OBJECT,
   properties: {
@@ -37,82 +63,116 @@ export const verifyIntel = async (
 
   const isStartImageURL = startImageBase64.startsWith('http');
   const cleanEnd = endImageBase64.split(',')[1] || endImageBase64;
+  const cleanStart = !isStartImageURL ? (startImageBase64.split(',')[1] || startImageBase64) : null;
 
-  const parts: any[] = [
+  // --- STEP 1: THE DETECTIVE AGENT ---
+  console.log("🕵️ Detective Agent analyzing...");
+  const detectiveParts: any[] = [
     {
-      text: `ROLE: You are the user's Task Handler. 
-    
-    PERSONALITY PROTOCOL (CRITICAL): ${handlerPrompt}
-    
-    USER PROFILE (MOTIVATION): The user is trying to improve their life in this way: "${userLifeGoal}". Use this context to motivate, shame, or praise them according to your persona.
-    
-    MISSION CONTEXT: The Operative (user) has a mission: "${missionDescription}".
-    
-    INPUTS:
-    ${isStartImageURL ? '1. BEFORE IMAGE: Not available (Assigned Task). Evaluate based on description only.' : '1. BEFORE IMAGE (Start): The initial messy state or environment.'}
-    2. AFTER IMAGE (End): The submitted evidence of completion.
+      text: `ROLE: You are 'The Detective'. Your ONLY job is to verify facts and catch cheaters. You have no personality.
+      
+      MISSION: "${missionDescription}"
+      
+      INSTRUCTIONS:
+      1. Identify the "Target" of the mission (what needs to be done/removed).
+      2. Compare the BEFORE and AFTER images (if Before exists).
+      3. Check if they are the same room (Location Match).
+      4. Check if the Target object is GONE. Be extremely strict. If it's still there, targetRemoved = false.
+      `
+    },
+    { inlineData: { mimeType: 'image/jpeg', data: cleanEnd } }
+  ];
+  if (cleanStart) detectiveParts.push({ inlineData: { mimeType: 'image/jpeg', data: cleanStart } });
 
-    PROTOCOL:
-    1. **MISSION ANALYSIS**: 
-       - Identify the "Target" of the mission from the description: "${missionDescription}". (e.g. "Remove bottles", "Clean desk").
-       - Determine the Task Type: CLEANING or CREATIVE/ACTION.
+  const detectiveResult = await ai.models.generateContent({
+    model: 'gemini-2.0-flash',
+    contents: { parts: detectiveParts },
+    config: { responseMimeType: "application/json", responseSchema: detectiveSchema, temperature: 0.2 }
+  });
+  const detectiveData = JSON.parse(detectiveResult.text || "{}");
+  console.log("🕵️ Detective Report:", detectiveData);
 
-    2. **VISUAL COMPARISON (CRITICAL)**:
-       - **Locate the Target**: Find the specific mess/object in the BEFORE image (if available).
-       - **Verify Removal**: Look for that *exact same object* in the AFTER image.
-       - **FAIL CONDITION**: If the target object (e.g., the bottles, the trash, the laundry) is STILL VISIBLE in the AFTER image (even if moved slightly), the mission is a **FAIL (0 Stars)**. Do not be fooled by lighting changes.
 
-    3. **ANTI-CHEAT / RELEVANCE CHECK**: 
-       - **Cleaning**: ${isStartImageURL ? 'Skip location check.' : 'Compare background/layout. Must match.'}
-       - **Action/Creative**: Ensure the image provides *proof* of the specific task described. If irrelevant, FAIL.
-
-    4. **STRICT COMPLETION ANALYSIS**: Analyze the AFTER image with EXTREME SCRUTINY.
-       - **For CLEANING**: Look for dust, clutter, or "hidden" messes. Zero tolerance.
-       - **For ACTION/CREATIVE**: Assess the *quality* and *effort* visible. 
-         - Did they just take a picture of a blank page? (FAIL)
-         - Is the work finished? 
-         - Does it look like they put in genuine effort?
-       
-    5. **SCORING (STRICT)**: Estimate completion percentage (0-100%) conservatively.
-       - 95-100%: **PERFECT**. Target is GONE. Area is spotless. (3 Stars)
-       - 85-94%: **GOOD**. Target is gone, but minor other clutter remains. (2 Stars)
-       - 75-84%: **PASSABLE**. Bare minimum. (1 Star)
-       - Under 75%: **FAIL**. Target still present or work incomplete. (0 Stars, missionComplete = false).
-
-    6. **OUTPUT**: Your "debrief" must embody the personality described above completely. If they failed (especially if the target is still there), roast them mercilessly (if persona allows).` },
+  // --- STEP 2: THE INSPECTOR AGENT ---
+  console.log("🧐 Inspector Agent analyzing...");
+  const inspectorParts: any[] = [
     {
-      inlineData: {
-        mimeType: 'image/jpeg',
-        data: cleanEnd
-      }
+      text: `ROLE: You are 'The Inspector'. Your ONLY job is to grade the visual quality of the AFTER image.
+      
+      MISSION: "${missionDescription}"
+      
+      INSTRUCTIONS:
+      1. Ignore the "story". Look at the image.
+      2. Rate the Cleanliness/Order (0-100).
+      3. List any visible clutter, dust, or mess.
+      4. Rate the Effort visible.
+      `
+    },
+    { inlineData: { mimeType: 'image/jpeg', data: cleanEnd } }
+  ];
+
+  const inspectorResult = await ai.models.generateContent({
+    model: 'gemini-2.0-flash',
+    contents: { parts: inspectorParts },
+    config: { responseMimeType: "application/json", responseSchema: inspectorSchema, temperature: 0.2 }
+  });
+  const inspectorData = JSON.parse(inspectorResult.text || "{}");
+  console.log("🧐 Inspector Report:", inspectorData);
+
+
+  // --- STEP 3: THE HANDLER AGENT ---
+  console.log("🗣️ Handler Agent synthesizing...");
+
+  // Construct the "Truth" for the handler
+  const truthData = `
+    DETECTIVE REPORT (FACTS):
+    - Task Type: ${detectiveData.isCleaningTask ? "Cleaning/Removal" : "Action/Creative"}
+    - Target: ${detectiveData.targetIdentified}
+    - Location Match: ${detectiveData.locationMatch} (If false, FAIL immediately)
+    - Target Removed: ${detectiveData.targetRemoved} (If false, FAIL immediately)
+    - Suspicious: ${detectiveData.suspiciousActivity}
+
+    INSPECTOR REPORT (QUALITY):
+    - Score: ${inspectorData.cleanlinessScore}/100
+    - Effort: ${inspectorData.effortRating}
+    - Clutter Left: ${inspectorData.remainingClutter.join(", ")}
+    - Defects: ${inspectorData.visualDefects}
+  `;
+
+  const handlerParts: any[] = [
+    {
+      text: `ROLE: You are the user's Task Handler.
+      
+      PERSONALITY PROTOCOL: ${handlerPrompt}
+      USER GOAL: "${userLifeGoal}"
+      MISSION: "${missionDescription}"
+
+      INPUT DATA (THE TRUTH):
+      ${truthData}
+
+      INSTRUCTIONS:
+      1. Review the "Truth" data above.
+      2. DECIDE THE OUTCOME:
+         - FAIL (0 Stars) if: Location mismatch, Target NOT removed, or Score < 75.
+         - 1 Star: Target removed but low score (75-84) or Low Effort.
+         - 2 Stars: Target removed, Good score (85-94).
+         - 3 Stars: Target removed, Perfect score (95+), High Effort.
+      3. Generate the "debrief" based on your Persona.
+         - If they failed (especially if Detective said Target NOT removed), roast them.
+         - If they passed, praise them accordingly.
+      `
     }
   ];
 
-  if (!isStartImageURL) {
-    const cleanStart = startImageBase64.split(',')[1] || startImageBase64;
-    parts.push({
-      inlineData: {
-        mimeType: 'image/jpeg',
-        data: cleanStart
-      }
-    });
-  }
-
-  const response = await ai.models.generateContent({
+  const handlerResult = await ai.models.generateContent({
     model: 'gemini-2.0-flash',
-    contents: {
-      parts: parts
-    },
-    config: {
-      responseMimeType: "application/json",
-      responseSchema: missionSchema,
-      temperature: 0.7,
-    }
+    contents: { parts: handlerParts },
+    config: { responseMimeType: "application/json", responseSchema: missionSchema, temperature: 0.7 }
   });
 
-  if (response.text) {
+  if (handlerResult.text) {
     try {
-      return JSON.parse(response.text) as MissionResult;
+      return JSON.parse(handlerResult.text) as MissionResult;
     } catch (e) {
       console.error("Failed to parse Intel", e);
       throw new Error("Intel corrupted. Transmission failed.");
