@@ -23,8 +23,7 @@ export const getUserStats = async (uid: string): Promise<UserStats> => {
   if (snapshot.exists()) {
     return snapshot.val();
   }
-  // Initialize stats if they don't exist
-  await set(ref(database, `userStats/${uid}`), defaultStats);
+  // Return default stats if they don't exist (do not write, as we might not have permission)
   return defaultStats;
 };
 
