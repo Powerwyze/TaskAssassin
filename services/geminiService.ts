@@ -53,27 +53,33 @@ export const verifyIntel = async (
     2. AFTER IMAGE (End): The submitted evidence of completion.
 
     PROTOCOL:
-    1. **TASK TYPE ANALYSIS**: First, determine the nature of the mission: "${missionDescription}". Is it a CLEANING task, or a CREATIVE/ACTION task (e.g. "Read a book", "Workout", "Draw", "Code")?
+    1. **MISSION ANALYSIS**: 
+       - Identify the "Target" of the mission from the description: "${missionDescription}". (e.g. "Remove bottles", "Clean desk").
+       - Determine the Task Type: CLEANING or CREATIVE/ACTION.
 
-    2. **ANTI-CHEAT / RELEVANCE CHECK**: 
+    2. **VISUAL COMPARISON (CRITICAL)**:
+       - **Locate the Target**: Find the specific mess/object in the BEFORE image (if available).
+       - **Verify Removal**: Look for that *exact same object* in the AFTER image.
+       - **FAIL CONDITION**: If the target object (e.g., the bottles, the trash, the laundry) is STILL VISIBLE in the AFTER image (even if moved slightly), the mission is a **FAIL (0 Stars)**. Do not be fooled by lighting changes.
+
+    3. **ANTI-CHEAT / RELEVANCE CHECK**: 
        - **Cleaning**: ${isStartImageURL ? 'Skip location check.' : 'Compare background/layout. Must match.'}
-       - **Action/Creative**: Ensure the image provides *proof* of the specific task described. (e.g. A photo of a book for "Read", a sweaty selfie/watch stats for "Workout"). If the image is irrelevant, FAIL immediately.
+       - **Action/Creative**: Ensure the image provides *proof* of the specific task described. If irrelevant, FAIL.
 
-    3. **STRICT COMPLETION ANALYSIS**: Analyze the AFTER image with EXTREME SCRUTINY.
+    4. **STRICT COMPLETION ANALYSIS**: Analyze the AFTER image with EXTREME SCRUTINY.
        - **For CLEANING**: Look for dust, clutter, or "hidden" messes. Zero tolerance.
        - **For ACTION/CREATIVE**: Assess the *quality* and *effort* visible. 
          - Did they just take a picture of a blank page? (FAIL)
          - Is the work finished? 
          - Does it look like they put in genuine effort?
-       - **Comparison**: ${isStartImageURL ? '' : 'For cleaning, ensure the specific mess in the BEFORE image is gone.'}
        
-    4. **SCORING (STRICT)**: Estimate completion percentage (0-100%) conservatively.
-       - 95-100%: **PERFECT**. Flawless execution. Showroom quality or impressive effort. (3 Stars)
-       - 85-94%: **GOOD**. Solid work, but minor improvements possible. (2 Stars)
-       - 75-84%: **PASSABLE**. Bare minimum effort to technically count. (1 Star)
-       - Under 75%: **FAIL**. Incomplete, lazy, or irrelevant. (0 Stars, missionComplete = false).
+    5. **SCORING (STRICT)**: Estimate completion percentage (0-100%) conservatively.
+       - 95-100%: **PERFECT**. Target is GONE. Area is spotless. (3 Stars)
+       - 85-94%: **GOOD**. Target is gone, but minor other clutter remains. (2 Stars)
+       - 75-84%: **PASSABLE**. Bare minimum. (1 Star)
+       - Under 75%: **FAIL**. Target still present or work incomplete. (0 Stars, missionComplete = false).
 
-    5. **OUTPUT**: Your "debrief" must embody the personality described above completely. If they failed or were lazy, roast them (if persona allows).` },
+    6. **OUTPUT**: Your "debrief" must embody the personality described above completely. If they failed (especially if the target is still there), roast them mercilessly (if persona allows).` },
     {
       inlineData: {
         mimeType: 'image/jpeg',
