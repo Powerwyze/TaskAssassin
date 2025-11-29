@@ -11,6 +11,7 @@ import BugReportModal from './components/BugReportModal';
 import AdminPage from './components/AdminPage';
 import { ProgressDashboard } from './components/ProgressDashboard';
 import { Leaderboard } from './components/Leaderboard';
+import { NotificationCenter } from './components/NotificationCenter';
 import { verifyIntel } from './services/geminiService';
 import { subscribeUserStats, updateStatsOnTaskCompletion } from './services/gamificationService';
 import { celebrate } from './utils/celebration';
@@ -480,11 +481,6 @@ const App: React.FC = () => {
   if (view === 'LOGIN') {
     return <LoginScreen onLogin={handleLogin} />;
   }
-
-  if (view === 'ADMIN') {
-    return <AdminPage onExit={() => setView('DASHBOARD')} />;
-  }
-
   const renderDashboard = () => (
     <div className="space-y-6 animate-in slide-in-from-left duration-300">
       {/* Stats Bar */}
@@ -507,23 +503,25 @@ const App: React.FC = () => {
             <div className="text-xl font-bold font-mono bg-gradient-to-r from-orange-400 to-red-400 bg-clip-text text-transparent">{userStats?.currentStreak || 0} DAYS</div>
           </div>
         </div>
-      </div>
+      </div >
 
       {/* XP Progress Bar */}
-      {userStats && (
-        <div className="bg-gradient-to-br from-slate-900/60 to-purple-900/60 p-4 rounded-lg border border-cyber-purple/30">
-          <div className="flex justify-between text-sm mb-2">
-            <span className="text-gray-300">XP Progress</span>
-            <span className="text-cyber-cyan">{userStats.xp % 100}/100</span>
+      {
+        userStats && (
+          <div className="bg-gradient-to-br from-slate-900/60 to-purple-900/60 p-4 rounded-lg border border-cyber-purple/30">
+            <div className="flex justify-between text-sm mb-2">
+              <span className="text-gray-300">XP Progress</span>
+              <span className="text-cyber-cyan">{userStats.xp % 100}/100</span>
+            </div>
+            <div className="w-full bg-slate-800 rounded-full h-3 overflow-hidden border border-cyber-purple/30">
+              <div
+                className="h-full bg-gradient-to-r from-cyber-purple to-cyber-pink transition-all duration-500"
+                style={{ width: `${userStats.xp % 100}%` }}
+              />
+            </div>
           </div>
-          <div className="w-full bg-slate-800 rounded-full h-3 overflow-hidden border border-cyber-purple/30">
-            <div
-              className="h-full bg-gradient-to-r from-cyber-purple to-cyber-pink transition-all duration-500"
-              style={{ width: `${userStats.xp % 100}%` }}
-            />
-          </div>
-        </div>
-      )}
+        )
+      }
 
       {/* Action Buttons */}
       <div className="grid grid-cols-2 gap-3">
@@ -544,24 +542,26 @@ const App: React.FC = () => {
       </div>
 
       {/* Friends List (Mini) */}
-      {friends.length > 0 && (
-        <div className="bg-slate-900/50 border border-slate-700 rounded-lg p-3">
-          <h3 className="text-xs font-mono text-slate-400 mb-2 uppercase tracking-wider flex items-center gap-2">
-            <Globe className="w-3 h-3" /> Active Friends
-          </h3>
-          <div className="flex gap-3 overflow-x-auto pb-2 custom-scrollbar">
-            {friends.map(friend => (
-              <div key={friend.id} className="flex flex-col items-center min-w-[60px] cursor-pointer" onClick={() => setView('SOCIAL')}>
-                <div className="w-10 h-10 bg-slate-700 rounded-full overflow-hidden border border-slate-600 relative">
-                  {friend.avatar ? <img src={friend.avatar} className="w-full h-full object-cover" /> : <UserCircle className="w-full h-full text-slate-400 p-1" />}
-                  <div className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-green-500 rounded-full border border-slate-900"></div>
+      {
+        friends.length > 0 && (
+          <div className="bg-slate-900/50 border border-slate-700 rounded-lg p-3">
+            <h3 className="text-xs font-mono text-slate-400 mb-2 uppercase tracking-wider flex items-center gap-2">
+              <Globe className="w-3 h-3" /> Active Friends
+            </h3>
+            <div className="flex gap-3 overflow-x-auto pb-2 custom-scrollbar">
+              {friends.map(friend => (
+                <div key={friend.id} className="flex flex-col items-center min-w-[60px] cursor-pointer" onClick={() => setView('SOCIAL')}>
+                  <div className="w-10 h-10 bg-slate-700 rounded-full overflow-hidden border border-slate-600 relative">
+                    {friend.avatar ? <img src={friend.avatar} className="w-full h-full object-cover" /> : <UserCircle className="w-full h-full text-slate-400 p-1" />}
+                    <div className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-green-500 rounded-full border border-slate-900"></div>
+                  </div>
+                  <span className="text-[10px] text-slate-300 font-mono mt-1 truncate w-full text-center">{friend.codename}</span>
                 </div>
-                <span className="text-[10px] text-slate-300 font-mono mt-1 truncate w-full text-center">{friend.codename}</span>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
-        </div>
-      )}
+        )
+      }
 
       {/* Mission List */}
       <div>
@@ -697,7 +697,7 @@ const App: React.FC = () => {
           )}
         </div>
       </div>
-    </div>
+    </div >
   );
 
   const renderCreateMission = () => (
@@ -831,199 +831,201 @@ const App: React.FC = () => {
             )}
           </div>
         )}
-      </div>
-    );
+        );
+      };
+
+        return (
+        <div className="min-h-screen bg-[#0f172a] text-slate-200 font-sans selection:bg-green-500/30">
+          {/* Background Grid */}
+          <div className="fixed inset-0 bg-[linear-gradient(rgba(16,185,129,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(16,185,129,0.02)_1px,transparent_1px)] bg-[size:20px_20px] pointer-events-none z-0"></div>
+          {/* Header */}
+          {view !== 'LOGIN' && view !== 'ADMIN' && (
+            <header className="sticky top-0 z-50 bg-[#0f172a]/90 backdrop-blur-md border-b border-slate-800 px-4 py-3 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 bg-gradient-to-br from-green-500 to-emerald-700 rounded flex items-center justify-center shadow-lg shadow-green-500/20">
+                  <Crosshair className="w-5 h-5 text-white" />
+                </div>
+                <h1 className="font-mono font-bold text-lg tracking-tighter text-white">
+                  TASK<span className="text-green-500">ASSASSIN</span>
+                </h1>
+              </div>
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => setShowBugReport(true)}
+                  className="p-2 text-slate-500 hover:text-red-400 transition-colors"
+                  title="Report Bug"
+                >
+                  <AlertTriangle className="w-5 h-5" />
+                </button>
+
+                {/* NOTIFICATION CENTER */}
+                {currentUserId && <NotificationCenter userId={currentUserId} />}
+
+                <div className="flex items-center gap-2 bg-slate-800/50 px-3 py-1 rounded-full border border-slate-700">
+                  <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                  <span className="text-xs font-mono text-green-500">{handlerDisplayName.toUpperCase()} ONLINE</span>
+                </div>
+              </div>
+            </header>
+          )}
+
+          <main className="flex-1 max-w-md w-full mx-auto px-4 py-6 relative z-10 overflow-y-auto">
+            {view === 'DASHBOARD' && renderDashboard()}
+            {view === 'CREATE_MISSION' && renderCreateMission()}
+            {view === 'EXECUTE_MISSION' && renderExecuteMission()}
+            {view === 'DEBRIEF' && lastResult && (
+              <MissionDossier
+                mission={missions.find(m => m.id === activeMissionId)}
+                result={lastResult}
+                onClose={() => {
+                  setLastResult(null);
+                  setView('DASHBOARD');
+                }}
+              />
+            )}
+            {view === 'PROFILE' && (
+              <ProfileSettings
+                userProfile={userProfile}
+                handlers={HANDLERS}
+                onUpdateProfile={setUserProfile}
+                onComplete={async () => {
+                  if (currentUserId) {
+                    await updateUserProfile(currentUserId, userProfile);
+                  }
+                  setView('DASHBOARD');
+                }}
+                onLogout={handleLogout}
+              />
+            )}
+            {view === 'CHAT' && (
+              <TacticalChat
+                persona={activeHandler}
+                userLifeGoal={userProfile.lifeGoal}
+                onAddMission={handleCreateMission}
+              />
+            )}
+            {view === 'SOCIAL' && (
+              <SocialHub
+                userProfile={userProfile}
+                currentUserId={currentUserId || ''}
+                friends={friends}
+                requests={friendRequests}
+                sentRequests={sentFriendRequests}
+                messages={socialMessages}
+                mockUsers={allUsers}
+                onSendRequest={handleSendFriendRequest}
+                onAcceptRequest={handleAcceptRequest}
+                onDeclineRequest={handleDeclineRequest}
+                onUnfriend={handleUnfriend}
+                onSendMessage={handleSendSocialMessage}
+                onIssueTask={handleIssueSocialTask}
+              />
+            )}
+          </main>
+
+          {/* Navigation Bar */}
+          {view !== 'LOGIN' && view !== 'ADMIN' && (
+            <nav className="fixed bottom-0 left-0 right-0 bg-[#0f172a]/95 backdrop-blur border-t border-slate-800 z-50 pb-safe">
+              <div className="flex justify-around items-center p-2 max-w-md mx-auto">
+
+                {/* Home Button */}
+                <div className="relative group flex flex-col items-center">
+                  <div className="absolute bottom-full mb-3 hidden group-hover:block bg-slate-900 border border-green-500 text-green-500 text-[10px] px-3 py-1 rounded shadow-neon-green whitespace-nowrap font-mono z-50 pointer-events-none">
+                    HOME
+                  </div>
+                  <button
+                    onClick={() => setView('DASHBOARD')}
+                    className={`flex flex-col items-center gap-1 transition-all ${view === 'DASHBOARD' ? 'text-green-500 drop-shadow-[0_0_8px_rgba(34,197,94,0.8)]' : 'text-slate-500 hover:text-slate-300'}`}
+                  >
+                    <div className="relative">
+                      <Settings className="w-6 h-6" />
+                      {view === 'DASHBOARD' && <span className="absolute -top-1 -right-1 w-2 h-2 bg-green-500 rounded-full animate-ping" />}
+                    </div>
+                    <span className="text-[10px] font-mono">HOME</span>
+                  </button>
+                </div>
+
+                {/* Coach Button */}
+                <div className="relative group flex flex-col items-center">
+                  <div className="absolute bottom-full mb-3 hidden group-hover:block bg-slate-900 border border-blue-500 text-blue-500 text-[10px] px-3 py-1 rounded shadow-neon-blue whitespace-nowrap font-mono z-50 pointer-events-none">
+                    COACH
+                  </div>
+                  <button
+                    onClick={() => setView('CHAT')}
+                    className={`flex flex-col items-center gap-1 transition-all ${view === 'CHAT' ? 'text-blue-500 drop-shadow-[0_0_8px_rgba(59,130,246,0.8)]' : 'text-slate-500 hover:text-slate-300'}`}
+                  >
+                    <MessageSquare className="w-6 h-6" />
+                    <span className="text-[10px] font-mono whitespace-nowrap">COACH</span>
+                  </button>
+                </div>
+
+                {/* Social Button */}
+                <div className="relative group flex flex-col items-center">
+                  <div className="absolute bottom-full mb-3 hidden group-hover:block bg-slate-900 border border-neon-green text-neon-green text-[10px] px-3 py-1 rounded shadow-neon-green whitespace-nowrap font-mono z-50 pointer-events-none">
+                    SOCIAL
+                  </div>
+                  <button
+                    onClick={() => setView('SOCIAL')}
+                    className={`flex flex-col items-center gap-1 transition-all ${view === 'SOCIAL' ? 'text-neon-green drop-shadow-[0_0_8px_rgba(16,185,129,0.8)]' : 'text-slate-500 hover:text-slate-300'}`}
+                  >
+                    <Globe className="w-6 h-6" />
+                    <span className="text-[10px] font-mono">SOCIAL</span>
+                  </button>
+                </div>
+
+                {/* Me Button */}
+                <div className="relative group flex flex-col items-center">
+                  <div className="absolute bottom-full mb-3 hidden group-hover:block bg-slate-900 border border-cyber-pink text-cyber-pink text-[10px] px-3 py-1 rounded shadow-neon-pink whitespace-nowrap font-mono z-50 pointer-events-none">
+                    PROFILE
+                  </div>
+                  <button
+                    onClick={() => setView('PROFILE')}
+                    className={`flex flex-col items-center gap-1 transition-all ${view === 'PROFILE' ? 'text-cyber-pink drop-shadow-[0_0_8px_rgba(236,72,153,0.8)]' : 'text-slate-500 hover:text-slate-300'}`}
+                  >
+                    <UserCircle className="w-6 h-6" />
+                    <span className="text-[10px] font-mono">ME</span>
+                  </button>
+                </div>
+
+              </div>
+            </nav>
+          )}
+
+          {/* Overlays */}
+          <TutorialOverlay
+            isOpen={showTutorial}
+            onClose={handleTutorialClose}
+          />
+
+          <BugReportModal
+            isOpen={showBugReport}
+            onClose={() => setShowBugReport(false)}
+            currentUserId={currentUserId || 'anonymous'}
+          />
+
+          {/* Gamification Modals */}
+          {showProgressDashboard && currentUserId && (
+            <ProgressDashboard
+              userId={currentUserId}
+              onClose={() => setShowProgressDashboard(false)}
+            />
+          )}
+
+          {showLeaderboard && currentUserId && (
+            <Leaderboard
+              userId={currentUserId}
+              friendIds={friends.map(f => f.id)}
+              onClose={() => setShowLeaderboard(false)}
+            />
+          )}
+
+          {/* Admin Access Hidden Trigger */}
+          <div
+            className="fixed top-0 left-0 w-4 h-4 z-[100] cursor-default"
+            onDoubleClick={handleAdminAccess}
+          />
+        </div>
+        );
   };
 
-  return (
-    <div className="min-h-screen bg-[#0f172a] text-slate-200 font-sans selection:bg-green-500/30">
-      {/* Background Grid */}
-      <div className="fixed inset-0 bg-[linear-gradient(rgba(16,185,129,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(16,185,129,0.02)_1px,transparent_1px)] bg-[size:20px_20px] pointer-events-none z-0"></div>
-
-      {/* Header */}
-      {view !== 'LOGIN' && view !== 'ADMIN' && (
-        <header className="sticky top-0 z-50 bg-[#0f172a]/90 backdrop-blur-md border-b border-slate-800 px-4 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-gradient-to-br from-green-500 to-emerald-700 rounded flex items-center justify-center shadow-lg shadow-green-500/20">
-              <Crosshair className="w-5 h-5 text-white" />
-            </div>
-            <h1 className="font-mono font-bold text-lg tracking-tighter text-white">
-              TASK<span className="text-green-500">ASSASSIN</span>
-            </h1>
-          </div>
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => setShowBugReport(true)}
-              className="p-2 text-slate-500 hover:text-red-400 transition-colors"
-              title="Report Bug"
-            >
-              <AlertTriangle className="w-5 h-5" />
-            </button>
-            <div className="flex items-center gap-2 bg-slate-800/50 px-3 py-1 rounded-full border border-slate-700">
-              <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-              <span className="text-xs font-mono text-green-500">{handlerDisplayName.toUpperCase()} ONLINE</span>
-            </div>
-          </div>
-        </header>
-      )}
-
-      <main className="flex-1 max-w-md w-full mx-auto px-4 py-6 relative z-10 overflow-y-auto">
-        {view === 'DASHBOARD' && renderDashboard()}
-        {view === 'CREATE_MISSION' && renderCreateMission()}
-        {view === 'EXECUTE_MISSION' && renderExecuteMission()}
-        {view === 'DEBRIEF' && lastResult && (
-          <MissionDossier
-            mission={missions.find(m => m.id === activeMissionId)}
-            result={lastResult}
-            onClose={() => {
-              setLastResult(null);
-              setView('DASHBOARD');
-            }}
-          />
-        )}
-        {view === 'PROFILE' && (
-          <ProfileSettings
-            userProfile={userProfile}
-            handlers={HANDLERS}
-            onUpdateProfile={setUserProfile}
-            onComplete={async () => {
-              if (currentUserId) {
-                await updateUserProfile(currentUserId, userProfile);
-              }
-              setView('DASHBOARD');
-            }}
-            onLogout={handleLogout}
-          />
-        )}
-        {view === 'CHAT' && (
-          <TacticalChat
-            persona={activeHandler}
-            userLifeGoal={userProfile.lifeGoal}
-            onAddMission={handleCreateMission}
-          />
-        )}
-        {view === 'SOCIAL' && (
-          <SocialHub
-            userProfile={userProfile}
-            currentUserId={currentUserId || ''}
-            friends={friends}
-            requests={friendRequests}
-            sentRequests={sentFriendRequests}
-            messages={socialMessages}
-            mockUsers={allUsers}
-            onSendRequest={handleSendFriendRequest}
-            onAcceptRequest={handleAcceptRequest}
-            onDeclineRequest={handleDeclineRequest}
-            onUnfriend={handleUnfriend}
-            onSendMessage={handleSendSocialMessage}
-            onIssueTask={handleIssueSocialTask}
-          />
-        )}
-      </main>
-
-      {/* Navigation Bar */}
-      {view !== 'LOGIN' && view !== 'ADMIN' && (
-        <nav className="fixed bottom-0 left-0 right-0 bg-[#0f172a]/95 backdrop-blur border-t border-slate-800 z-50 pb-safe">
-          <div className="flex justify-around items-center p-2 max-w-md mx-auto">
-
-            {/* Home Button */}
-            <div className="relative group flex flex-col items-center">
-              <div className="absolute bottom-full mb-3 hidden group-hover:block bg-slate-900 border border-green-500 text-green-500 text-[10px] px-3 py-1 rounded shadow-neon-green whitespace-nowrap font-mono z-50 pointer-events-none">
-                HOME
-              </div>
-              <button
-                onClick={() => setView('DASHBOARD')}
-                className={`flex flex-col items-center gap-1 transition-all ${view === 'DASHBOARD' ? 'text-green-500 drop-shadow-[0_0_8px_rgba(34,197,94,0.8)]' : 'text-slate-500 hover:text-slate-300'}`}
-              >
-                <div className="relative">
-                  <Settings className="w-6 h-6" />
-                  {view === 'DASHBOARD' && <span className="absolute -top-1 -right-1 w-2 h-2 bg-green-500 rounded-full animate-ping" />}
-                </div>
-                <span className="text-[10px] font-mono">HOME</span>
-              </button>
-            </div>
-
-            {/* Coach Button */}
-            <div className="relative group flex flex-col items-center">
-              <div className="absolute bottom-full mb-3 hidden group-hover:block bg-slate-900 border border-blue-500 text-blue-500 text-[10px] px-3 py-1 rounded shadow-neon-blue whitespace-nowrap font-mono z-50 pointer-events-none">
-                COACH
-              </div>
-              <button
-                onClick={() => setView('CHAT')}
-                className={`flex flex-col items-center gap-1 transition-all ${view === 'CHAT' ? 'text-blue-500 drop-shadow-[0_0_8px_rgba(59,130,246,0.8)]' : 'text-slate-500 hover:text-slate-300'}`}
-              >
-                <MessageSquare className="w-6 h-6" />
-                <span className="text-[10px] font-mono whitespace-nowrap">COACH</span>
-              </button>
-            </div>
-
-            {/* Social Button */}
-            <div className="relative group flex flex-col items-center">
-              <div className="absolute bottom-full mb-3 hidden group-hover:block bg-slate-900 border border-neon-green text-neon-green text-[10px] px-3 py-1 rounded shadow-neon-green whitespace-nowrap font-mono z-50 pointer-events-none">
-                SOCIAL
-              </div>
-              <button
-                onClick={() => setView('SOCIAL')}
-                className={`flex flex-col items-center gap-1 transition-all ${view === 'SOCIAL' ? 'text-neon-green drop-shadow-[0_0_8px_rgba(16,185,129,0.8)]' : 'text-slate-500 hover:text-slate-300'}`}
-              >
-                <Globe className="w-6 h-6" />
-                <span className="text-[10px] font-mono">SOCIAL</span>
-              </button>
-            </div>
-
-            {/* Me Button */}
-            <div className="relative group flex flex-col items-center">
-              <div className="absolute bottom-full mb-3 hidden group-hover:block bg-slate-900 border border-cyber-pink text-cyber-pink text-[10px] px-3 py-1 rounded shadow-neon-pink whitespace-nowrap font-mono z-50 pointer-events-none">
-                PROFILE
-              </div>
-              <button
-                onClick={() => setView('PROFILE')}
-                className={`flex flex-col items-center gap-1 transition-all ${view === 'PROFILE' ? 'text-cyber-pink drop-shadow-[0_0_8px_rgba(236,72,153,0.8)]' : 'text-slate-500 hover:text-slate-300'}`}
-              >
-                <UserCircle className="w-6 h-6" />
-                <span className="text-[10px] font-mono">ME</span>
-              </button>
-            </div>
-
-          </div>
-        </nav>
-      )}
-
-      {/* Overlays */}
-      <TutorialOverlay
-        isOpen={showTutorial}
-        onClose={handleTutorialClose}
-      />
-
-      <BugReportModal
-        isOpen={showBugReport}
-        onClose={() => setShowBugReport(false)}
-        currentUserId={currentUserId || 'anonymous'}
-      />
-
-      {/* Gamification Modals */}
-      {showProgressDashboard && currentUserId && (
-        <ProgressDashboard
-          userId={currentUserId}
-          onClose={() => setShowProgressDashboard(false)}
-        />
-      )}
-
-      {showLeaderboard && currentUserId && (
-        <Leaderboard
-          userId={currentUserId}
-          friendIds={friends.map(f => f.id)}
-          onClose={() => setShowLeaderboard(false)}
-        />
-      )}
-
-      {/* Admin Access Hidden Trigger */}
-      <div
-        className="fixed top-0 left-0 w-4 h-4 z-[100] cursor-default"
-        onDoubleClick={handleAdminAccess}
-      />
-    </div>
-  );
-};
-
-export default App;
+        export default App;

@@ -1,6 +1,7 @@
-import { ref, get, set, update, serverTimestamp, onValue } from 'firebase/database';
+import { ref, get, set, update, increment, serverTimestamp, runTransaction, onValue } from 'firebase/database';
 import { database } from './firebaseConfig';
-import { UserStats, Achievement, Notification } from '../types';
+import { UserStats, Achievement, SocialUser } from '../types';
+import { sendNotification } from './notificationService';
 
 // ==================== USER STATS ====================
 
@@ -12,7 +13,9 @@ const defaultStats: UserStats = {
   level: 1,
   xp: 0,
   weeklyCompletions: 0,
-  monthlyCompletions: 0
+  monthlyCompletions: 0,
+  lastCompletionDate: null,
+  lastLoginDate: null
 };
 
 /**
@@ -25,6 +28,39 @@ export const getUserStats = async (uid: string): Promise<UserStats> => {
   }
   // Return default stats if they don't exist (do not write, as we might not have permission)
   return defaultStats;
+};
+
+/**
+ * Unlock an achievement for a user
+ */
+export const unlockAchievement = async (uid: string, achievementId: string): Promise<void> => {
+  const achievementRef = ref(database, `achievements/${uid}/${achievementId}`);
+  const snapshot = await get(achievementRef);
+
+  if (!snapshot.exists()) {
+    // New unlock!
+    await set(achievementRef, {
+      unlockedAt: serverTimestamp()
+    });
+
+    // Award XP (Simple: 50 XP per achievement)
+    const statsRef = ref(database, `userStats/${uid}`);
+    await update(statsRef, {
+      xp: increment(50)
+    });
+
+    // NOTIFICATION
+    const achievement = achievementDefinitions.find(a => a.id === achievementId);
+    if (achievement) {
+      await sendNotification(
+        uid,
+        'ACHIEVEMENT',
+        'Achievement Unlocked!',
+        `You unlocked: ${achievement.name}`,
+        '/profile'
+      );
+    }
+  }
 };
 
 /**

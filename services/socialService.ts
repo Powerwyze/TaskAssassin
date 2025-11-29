@@ -13,6 +13,7 @@ import {
 } from 'firebase/database';
 import { database } from './firebaseConfig';
 import { SocialUser, FriendRequest, SocialMessage, SentFriendRequest } from '../types';
+import { sendNotification } from './notificationService';
 
 // ==================== FRIEND REQUESTS ====================
 
@@ -39,6 +40,19 @@ export const sendFriendRequest = async (fromUid: string, toUid: string, message?
   };
 
   await update(ref(database), updates);
+
+  // NOTIFICATION
+  // We need the sender's name to make a good notification
+  const senderSnap = await get(ref(database, `users/${fromUid}/profile`));
+  const senderName = senderSnap.exists() ? senderSnap.val().codename : "Unknown Agent";
+
+  await sendNotification(
+    toUid,
+    'FRIEND_REQUEST',
+    'New Alliance Request',
+    `${senderName} wants to form an alliance.`,
+    '/social'
+  );
 };
 
 /**
@@ -67,6 +81,19 @@ export const acceptFriendRequest = async (
     };
     otherUpdates[`sentFriendRequests/${fromUid}/${requestId}`] = null;
     await update(ref(database), otherUpdates);
+
+    // NOTIFICATION
+    const accepterSnap = await get(ref(database, `users/${currentUid}/profile`));
+    const accepterName = accepterSnap.exists() ? accepterSnap.val().codename : "An Agent";
+
+    await sendNotification(
+      fromUid,
+      'FRIEND_REQUEST',
+      'Alliance Accepted',
+      `${accepterName} accepted your request.`,
+      '/social'
+    );
+
   } catch (error) {
     console.warn("Could not update other user's friend list (likely permission issue):", error);
     // We don't throw here, so the local user still sees the friendship
@@ -246,6 +273,19 @@ export const sendMessage = async (fromUid: string, toUid: string, text: string):
   updates[`userMessages/${toUid}/${messageId}`] = messageData;
 
   await update(ref(database), updates);
+
+  // NOTIFICATION (Optional: Could be noisy, maybe limit this?)
+  // For now, let's send it.
+  const senderSnap = await get(ref(database, `users/${fromUid}/profile`));
+  const senderName = senderSnap.exists() ? senderSnap.val().codename : "Agent";
+
+  await sendNotification(
+    toUid,
+    'MESSAGE',
+    `Message from ${senderName}`,
+    text.length > 30 ? text.substring(0, 30) + '...' : text,
+    '/social'
+  );
 };
 
 /**
@@ -326,6 +366,15 @@ export const issueTask = async (
       toUid: toUid,
       timestamp: serverTimestamp()
     });
+
+    // NOTIFICATION
+    await sendNotification(
+      toUid,
+      'TASK_ASSIGNED',
+      'New Mission Assigned',
+      `${issuerName} has assigned you a new mission: ${title}`,
+      '/' // Dashboard
+    );
   }
 
   return taskRef.key!;
