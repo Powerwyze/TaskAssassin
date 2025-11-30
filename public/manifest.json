@@ -1,0 +1,45 @@
+{
+    "name": "TaskAssassin - Gamified Task Manager",
+    "short_name": "TaskAssassin",
+    "description": "Convert your tasks into missions with AI-powered verification and gamification",
+    "start_url": "/",
+    "scope": "/",
+    "display": "standalone",
+    "orientation": "portrait-primary",
+    "background_color": "#0f172a",
+    "theme_color": "#0f172a",
+    "categories": [
+        "productivity",
+        "lifestyle",
+        "utilities"
+    ],
+    "icons": [
+        {
+            "src": "/icons/icon-192.png",
+            "sizes": "192x192",
+            "type": "image/png",
+            "purpose": "any maskable"
+        },
+        {
+            "src": "/icons/icon-512.png",
+            "sizes": "512x512",
+            "type": "image/png",
+            "purpose": "any maskable"
+        }
+    ],
+    "screenshots": [],
+    "shortcuts": [
+        {
+            "name": "New Mission",
+            "short_name": "New",
+            "description": "Create a new mission",
+            "url": "/?action=new",
+            "icons": [
+                {
+                    "src": "/icons/icon-192.png",
+                    "sizes": "192x192"
+                }
+            ]
+        }
+    ]
+}

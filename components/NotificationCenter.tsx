@@ -1,24 +1,17 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Bell, Check, Trash2, X } from 'lucide-react';
+import { Bell, Check, Trash2, X, Radio } from 'lucide-react';
 import { Notification } from '../types';
-import { subscribeNotifications, markAsRead, deleteNotification, clearAllNotifications } from '../services/notificationService';
+import { markAsRead, deleteNotification, clearAllNotifications } from '../services/notificationService';
+import { setupPushNotifications } from '../services/pwaService';
 
 interface NotificationCenterProps {
     userId: string;
+    notifications: Notification[];
 }
 
-export const NotificationCenter: React.FC<NotificationCenterProps> = ({ userId }) => {
-    const [notifications, setNotifications] = useState<Notification[]>([]);
+export const NotificationCenter: React.FC<NotificationCenterProps> = ({ userId, notifications }) => {
     const [isOpen, setIsOpen] = useState(false);
     const dropdownRef = useRef<HTMLDivElement>(null);
-
-    useEffect(() => {
-        if (!userId) return;
-        const unsubscribe = subscribeNotifications(userId, (data) => {
-            setNotifications(data);
-        });
-        return () => unsubscribe();
-    }, [userId]);
 
     // Close dropdown when clicking outside
     useEffect(() => {
@@ -37,8 +30,6 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({ userId }
         if (!notification.read) {
             await markAsRead(userId, notification.id);
         }
-        // If there's an action URL, we could navigate (but for now we just mark read)
-        // In a real app with React Router, we'd use navigate(notification.actionUrl)
     };
 
     const handleDelete = async (e: React.MouseEvent, id: string) => {
@@ -50,7 +41,22 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({ userId }
         if (confirm("Clear all notifications?")) {
             await clearAllNotifications(userId);
         }
-    }
+    };
+
+    const handleEnablePush = async () => {
+        const sub = await setupPushNotifications();
+        if (sub) {
+            alert("Push notifications enabled! (Mock)");
+        } else {
+            // It might return null if permission denied or error, or if we just logged it (as per current implementation)
+            // In a real app we would check permission state
+            if (Notification.permission === 'granted') {
+                alert("Notifications are enabled.");
+            } else {
+                alert("Could not enable notifications. Check browser settings.");
+            }
+        }
+    };
 
     return (
         <div className="relative" ref={dropdownRef}>
@@ -71,7 +77,12 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({ userId }
             {isOpen && (
                 <div className="absolute right-0 mt-2 w-80 bg-slate-800 border border-slate-700 rounded-lg shadow-xl z-50 overflow-hidden">
                     <div className="flex items-center justify-between p-3 border-b border-slate-700 bg-slate-900/50">
-                        <h3 className="font-bold text-white text-sm">NOTIFICATIONS</h3>
+                        <div className="flex items-center gap-2">
+                            <h3 className="font-bold text-white text-sm">NOTIFICATIONS</h3>
+                            <button onClick={handleEnablePush} title="Enable Push Notifications" className="text-slate-400 hover:text-green-500">
+                                <Radio size={14} />
+                            </button>
+                        </div>
                         {notifications.length > 0 && (
                             <button onClick={handleClearAll} className="text-xs text-slate-400 hover:text-red-400 flex items-center gap-1">
                                 <Trash2 size={12} /> Clear All
@@ -123,3 +134,4 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({ userId }
         </div>
     );
 };
+
