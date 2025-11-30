@@ -512,6 +512,35 @@ export const getAllUsers = async (currentUid: string, limit: number = 20): Promi
 };
 
 /**
+ * Subscribe to all users (real-time)
+ */
+export const subscribeAllUsers = (currentUid: string, callback: (users: SocialUser[]) => void): (() => void) => {
+  const usersRef = ref(database, 'users');
+  return onValue(usersRef, (snapshot) => {
+    const users: SocialUser[] = [];
+    if (snapshot.exists()) {
+      snapshot.forEach((childSnapshot) => {
+        const uid = childSnapshot.key;
+        const profile = childSnapshot.val().profile;
+
+        if (uid !== currentUid && profile) {
+          users.push({
+            id: uid!,
+            codename: profile.codename,
+            avatar: profile.avatar,
+            status: 'OFFLINE', // Default
+            handlerId: profile.handlerId
+          });
+        }
+      });
+    }
+    // Sort by codename
+    users.sort((a, b) => a.codename.localeCompare(b.codename));
+    callback(users);
+  });
+};
+
+/**
  * Report a bug
  */
 export const reportBug = async (uid: string, description: string): Promise<void> => {

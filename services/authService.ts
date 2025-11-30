@@ -6,7 +6,7 @@ import {
   User,
   updateProfile
 } from 'firebase/auth';
-import { ref, set, get } from 'firebase/database';
+import { ref, set, get, onValue } from 'firebase/database';
 import { auth, database } from './firebaseConfig';
 import { UserProfile } from '../types';
 
@@ -64,6 +64,20 @@ export const getUserProfile = async (uid: string): Promise<UserProfile | null> =
  */
 export const updateUserProfile = async (uid: string, profile: UserProfile): Promise<void> => {
   await set(ref(database, `users/${uid}/profile`), profile);
+};
+
+/**
+ * Subscribe to user profile changes
+ */
+export const subscribeUserProfile = (uid: string, callback: (profile: UserProfile | null) => void): (() => void) => {
+  const profileRef = ref(database, `users/${uid}/profile`);
+  return onValue(profileRef, (snapshot) => {
+    if (snapshot.exists()) {
+      callback(snapshot.val());
+    } else {
+      callback(null);
+    }
+  });
 };
 
 /**
