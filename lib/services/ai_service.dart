@@ -1,13 +1,20 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:google_generative_ai/google_generative_ai.dart';
 import 'package:http/http.dart' as http;
 import 'package:taskassassin/models/handler.dart';
 
 class AIService {
-  // TODO: Add your Gemini API key here - Get it from https://aistudio.google.com/app/apikey
-  // The previous API key was reported as leaked and has been removed for security
-  static const String _apiKey = 'AIzaSyDNNxbYCt8BxTRYdqK1Iqewd5UdC3OdnfQ';
+  // Get API key from .env file
+  static String get _apiKey {
+    final key = dotenv.env['GEMINI_API_KEY'] ?? '';
+    if (key.isEmpty || key == 'your_api_key_here') {
+      debugPrint('[AIService] WARNING: GEMINI_API_KEY not set in .env file');
+      debugPrint('[AIService] Get your API key from: https://aistudio.google.com/app/apikey');
+    }
+    return key;
+  }
   
   late final GenerativeModel _model;
   late final GenerativeModel _visionModel;
