@@ -7,6 +7,7 @@ import 'package:taskassassin/theme.dart';
 import 'package:taskassassin/models/achievement.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:taskassassin/services/image_upload_service.dart';
+import 'package:taskassassin/services/mission_service.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -17,6 +18,7 @@ class ProfileScreen extends StatefulWidget {
 
 class _ProfileScreenState extends State<ProfileScreen> {
   bool _uploadingAvatar = false;
+  bool _creatingWelcomeMission = false;
   final _picker = ImagePicker();
 
   Future<void> _changeAvatar() async {
@@ -66,6 +68,33 @@ class _ProfileScreenState extends State<ProfileScreen> {
       }
     } finally {
       if (mounted) setState(() => _uploadingAvatar = false);
+    }
+  }
+
+  Future<void> _createWelcomeMission() async {
+    final provider = context.read<AppProvider>();
+    final user = provider.currentUser;
+    if (user == null) return;
+
+    setState(() => _creatingWelcomeMission = true);
+    try {
+      final missionService = MissionService();
+      await missionService.createWelcomeMission(user.id);
+      await provider.loadMissions();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Welcome mission created! Check your missions.')),
+        );
+      }
+    } catch (e) {
+      debugPrint('Welcome mission creation error: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to create welcome mission: $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _creatingWelcomeMission = false);
     }
   }
 
@@ -257,6 +286,24 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ),
                 ),
                 const SizedBox(height: 24),
+                // Admin-only button to create welcome mission
+                if (user.email == MissionService.adminEmail) ...[
+                  SizedBox(
+                    width: double.infinity,
+                    child: FilledButton.icon(
+                      onPressed: _creatingWelcomeMission ? null : _createWelcomeMission,
+                      icon: _creatingWelcomeMission
+                          ? const SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Icon(Icons.rocket_launch),
+                      label: const Text('Create Welcome Mission (Test)'),
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                ],
                 Text('Life Goals', style: context.textStyles.titleLarge!.bold),
                 const SizedBox(height: 12),
                 Container(

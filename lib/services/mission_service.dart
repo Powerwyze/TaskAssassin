@@ -260,6 +260,57 @@ class MissionService {
     }
   }
 
+  /// Admin user email for welcome missions
+  static const String adminEmail = 'spc.bstewart@gmail.com';
+
+  /// Creates the welcome mission for a new user.
+  /// This mission is assigned by the admin account (spc.bstewart@gmail.com).
+  Future<Mission?> createWelcomeMission(String newUserId) async {
+    try {
+      // Look up the admin user by email
+      final adminData = await SupabaseConfig.client
+          .from('users')
+          .select()
+          .eq('email', adminEmail)
+          .maybeSingle();
+      
+      final String? adminUserId = adminData?['id'];
+      
+      final welcomeMission = await createMission(
+        userId: newUserId,
+        title: 'Welcome Mission: Tie Your Shoes! 👟',
+        description: '''Welcome to the app, Agent! 🎉
+
+Here's how this works: You'll receive missions from friends, your coach, or create your own. Social missions are how we keep each other accountable – friends can assign you tasks and you can challenge them right back!
+
+This is your FIRST example mission. Your objective: Tie your shoes and prove you can complete a mission.
+
+But wait... to take the "before" photo, you'll need to untie ONE of your shoes first. I know, I know – the sacrifices we make for accountability! 😂
+
+Go ahead, loosen those laces, snap a "before" photo of your untied shoe, then work your magic and tie it back up for the "after" shot.
+
+Let's see what you've got, Agent!''',
+        completedState: '''Your "after" photo should show a BEAUTIFULLY tied shoe – we're talking a proper knot, not that bunny-ears-gone-wrong situation.
+
+Your coach will analyze both photos to verify:
+✅ The "before" shows an untied shoe (yes, we can tell if you faked it!)
+✅ The "after" shows the same shoe, now properly tied
+✅ Bonus points for style – double knots, fancy loops, or just pure functional excellence
+
+Once verified, you'll earn your first stars and be ready for real missions!''',
+        type: MissionType.friendAssigned,
+        assignedByUserId: adminUserId,
+        assignedToUserId: newUserId,
+      );
+
+      debugPrint('[MissionService] Created welcome mission for user: $newUserId');
+      return welcomeMission;
+    } catch (e) {
+      debugPrint('[MissionService] Error creating welcome mission: $e');
+      return null;
+    }
+  }
+
   /// Reset a failed mission so the user can redo it.
   /// This moves the mission back to inProgress, clears stars/feedback,
   /// clears the AFTER photo (user must upload a new result), and clears completedAt.

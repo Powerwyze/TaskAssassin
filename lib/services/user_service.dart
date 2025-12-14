@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:taskassassin/models/user.dart';
 import 'package:taskassassin/supabase/supabase_config.dart';
+import 'package:taskassassin/services/mission_service.dart';
 
 class UserService {
   UserService();
@@ -45,6 +46,10 @@ class UserService {
       if (res.isNotEmpty) {
         final saved = User.fromJson(res.first);
         debugPrint('[UserService] Upserted user during onboarding: ${saved.id}');
+        
+        // Create welcome mission for new user
+        await _createWelcomeMissionForUser(saved.id);
+        
         return saved;
       }
 
@@ -53,6 +58,10 @@ class UserService {
       if (fetched != null) {
         final saved = User.fromJson(fetched);
         debugPrint('[UserService] Fetched user post-upsert during onboarding: ${saved.id}');
+        
+        // Create welcome mission for new user
+        await _createWelcomeMissionForUser(saved.id);
+        
         return saved;
       }
 
@@ -169,6 +178,18 @@ class UserService {
     } catch (e) {
       debugPrint('[UserService] Error deleting user: $e');
       rethrow;
+    }
+  }
+
+  /// Creates a welcome mission for a new user
+  Future<void> _createWelcomeMissionForUser(String userId) async {
+    try {
+      final missionService = MissionService();
+      await missionService.createWelcomeMission(userId);
+      debugPrint('[UserService] Welcome mission created for user: $userId');
+    } catch (e) {
+      // Don't fail user creation if welcome mission fails
+      debugPrint('[UserService] Failed to create welcome mission: $e');
     }
   }
 

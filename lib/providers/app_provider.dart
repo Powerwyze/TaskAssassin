@@ -253,8 +253,12 @@ class AppProvider extends ChangeNotifier {
 
   Future<void> signOut() async {
     try {
-      // Delete FCM token before signing out
-      await PushNotificationService().deleteToken();
+      // Delete FCM token before signing out (silently fail if push notifications aren't available)
+      try {
+        await PushNotificationService().deleteToken();
+      } catch (e) {
+        debugPrint('[AppProvider] Failed to delete FCM token (non-blocking): $e');
+      }
       
       await SupabaseConfig.auth.signOut();
       _currentUser = null;

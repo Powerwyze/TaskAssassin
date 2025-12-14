@@ -30,12 +30,12 @@ void main() async {
     debugPrint('[Supabase] Initialization error: $e');
   }
 
-  try {
-    await PushNotificationService().initialize();
+  // Initialize push notifications silently - don't block app startup if it fails
+  PushNotificationService().initialize().then((_) {
     debugPrint('[Push Notifications] Initialized successfully');
-  } catch (e) {
-    debugPrint('[Push Notifications] Initialization error: $e');
-  }
+  }).catchError((e) {
+    debugPrint('[Push Notifications] Initialization error (non-blocking): $e');
+  });
   
   runApp(
     ChangeNotifierProvider(

@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:taskassassin/providers/app_provider.dart';
 import 'package:taskassassin/models/mission.dart';
 import 'package:taskassassin/theme.dart';
 import 'package:taskassassin/widgets/mission_card.dart';
 import 'package:taskassassin/models/user.dart' as model_user;
-import 'package:taskassassin/screens/direct_message_screen.dart';
+import 'package:taskassassin/services/pwa_install_service.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -18,6 +19,12 @@ class DashboardScreen extends StatefulWidget {
 class _DashboardScreenState extends State<DashboardScreen> {
   static const List<String> _filters = ['ALL', 'EXECUTE', 'EXECUTED', 'FAILED', 'SCHEDULED'];
   int _selectedFilter = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    initPwaInstallPrompt();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -104,6 +111,55 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         children: [
                           // Header with app name and handler status
                           _CyberpunkHeader(handler: handler, user: user),
+                          const SizedBox(height: 16),
+                          // Email List Sign-up Button (at top)
+                          _EmailListButton(
+                            onTap: () async {
+                              final url = Uri.parse('https://docs.google.com/forms/d/e/1FAIpQLSfOFl-YlIriHMdIxinbBAIeNc9sQ_vSuf5opaKvODSHAE-jMg/viewform?usp=header');
+                              if (await canLaunchUrl(url)) {
+                                await launchUrl(url, mode: LaunchMode.externalApplication);
+                              }
+                            },
+                          ),
+                          const SizedBox(height: 12),
+                          // Invite a Friend Button
+                          _InviteFriendButton(
+                            onTap: () async {
+                              final subject = Uri.encodeComponent('Check out TaskAssassin!');
+                              final body = Uri.encodeComponent(
+                                'Hey! I\'ve been using TaskAssassin to track my goals and stay accountable. You should check it out: taskassassin.com'
+                              );
+                              final url = Uri.parse('mailto:?subject=$subject&body=$body');
+                              if (await canLaunchUrl(url)) {
+                                await launchUrl(url);
+                              }
+                            },
+                          ),
+                          const SizedBox(height: 12),
+                          _DownloadWebAppButton(
+                            onTap: () async {
+                              final messenger = ScaffoldMessenger.of(context);
+
+                              final blocker = getPwaInstallBlocker();
+                              if (blocker != null || !canShowPwaInstallPrompt()) {
+                                messenger.showSnackBar(
+                                  SnackBar(content: Text(blocker ?? 'Add to Home Screen is not available right now.')),
+                                );
+                                return;
+                              }
+
+                              final accepted = await showPwaInstallPrompt();
+                              messenger.showSnackBar(
+                                SnackBar(
+                                  content: Text(
+                                    accepted
+                                        ? 'Installation started—check your browser prompts.'
+                                        : 'Install dismissed.',
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
                           const SizedBox(height: 24),
                           // Stats Row - Level and Streak
                           Row(
@@ -735,6 +791,159 @@ class _FilterChips extends StatelessWidget {
             ),
           );
         }),
+      ),
+    );
+  }
+}
+
+class _EmailListButton extends StatelessWidget {
+  final VoidCallback onTap;
+
+  const _EmailListButton({required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [CyberpunkColors.neonTeal, CyberpunkColors.neonPurple],
+            begin: Alignment.centerLeft,
+            end: Alignment.centerRight,
+          ),
+          borderRadius: BorderRadius.circular(AppRadius.md),
+          boxShadow: [
+            BoxShadow(
+              color: CyberpunkColors.neonTeal.withValues(alpha: 0.4),
+              blurRadius: 12,
+              spreadRadius: 0,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.email_outlined, color: Colors.white, size: 20),
+            const SizedBox(width: 10),
+            Flexible(
+              child: Text(
+                'Download the App',
+                style: context.textStyles.labelLarge!.copyWith(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                ),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            const SizedBox(width: 8),
+            Icon(Icons.arrow_forward, color: Colors.white, size: 18),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _InviteFriendButton extends StatelessWidget {
+  final VoidCallback onTap;
+
+  const _InviteFriendButton({required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [CyberpunkColors.neonMagenta, CyberpunkColors.neonOrange],
+            begin: Alignment.centerLeft,
+            end: Alignment.centerRight,
+          ),
+          borderRadius: BorderRadius.circular(AppRadius.md),
+          boxShadow: [
+            BoxShadow(
+              color: CyberpunkColors.neonMagenta.withValues(alpha: 0.4),
+              blurRadius: 12,
+              spreadRadius: 0,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.person_add_outlined, color: Colors.white, size: 20),
+            const SizedBox(width: 10),
+            Flexible(
+              child: Text(
+                'Invite a Friend',
+                style: context.textStyles.labelLarge!.copyWith(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                ),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            const SizedBox(width: 8),
+            Icon(Icons.share, color: Colors.white, size: 18),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _DownloadWebAppButton extends StatelessWidget {
+  final VoidCallback onTap;
+
+  const _DownloadWebAppButton({required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [CyberpunkColors.neonTeal, CyberpunkColors.neonOrange],
+            begin: Alignment.centerLeft,
+            end: Alignment.centerRight,
+          ),
+          borderRadius: BorderRadius.circular(AppRadius.md),
+          boxShadow: [
+            BoxShadow(
+              color: CyberpunkColors.neonTeal.withValues(alpha: 0.35),
+              blurRadius: 12,
+              spreadRadius: 0,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.download_for_offline_outlined, color: Colors.white, size: 20),
+            const SizedBox(width: 10),
+            Flexible(
+              child: Text(
+                'Download Webapp',
+                style: context.textStyles.labelLarge!.copyWith(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                ),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            const SizedBox(width: 8),
+            Icon(Icons.home_outlined, color: Colors.white, size: 18),
+          ],
+        ),
       ),
     );
   }

@@ -1,12 +1,10 @@
 import 'package:flutter/foundation.dart';
 import 'package:taskassassin/models/notification.dart';
 import 'package:taskassassin/supabase/supabase_config.dart';
-import 'package:taskassassin/services/push_notification_service.dart';
 import 'package:uuid/uuid.dart';
 
 class NotificationService {
   final _uuid = const Uuid();
-  final _pushService = PushNotificationService();
 
   NotificationService();
 

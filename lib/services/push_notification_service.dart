@@ -15,7 +15,7 @@ class PushNotificationService {
   factory PushNotificationService() => _instance;
   PushNotificationService._internal();
 
-  final FirebaseMessaging _fcm = FirebaseMessaging.instance;
+  FirebaseMessaging? _fcm;
   final FlutterLocalNotificationsPlugin _localNotifications = FlutterLocalNotificationsPlugin();
   
   bool _initialized = false;
@@ -27,9 +27,19 @@ class PushNotificationService {
   Future<void> initialize() async {
     if (_initialized) return;
 
+    // Disable FCM on web entirely (not supported in this environment)
+    if (kIsWeb) {
+      debugPrint('[FCM] Skipping initialization on web (not supported)');
+      _initialized = true;
+      return;
+    }
+
     try {
-      // Request permission (iOS/Web)
-      final settings = await _fcm.requestPermission(
+      // Get FCM instance (mobile only)
+      _fcm = FirebaseMessaging.instance;
+      
+      // Request permission (iOS)
+      final settings = await _fcm!.requestPermission(
         alert: true,
         announcement: false,
         badge: true,
@@ -51,7 +61,7 @@ class PushNotificationService {
       FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
 
       // Get FCM token
-      _fcmToken = await _fcm.getToken(vapidKey: kIsWeb ? _getVapidKey() : null);
+      _fcmToken = await _fcm!.getToken();
       debugPrint('[FCM] Token: $_fcmToken');
 
       // Save token to user profile in Supabase
@@ -60,7 +70,7 @@ class PushNotificationService {
       }
 
       // Listen for token refresh
-      _fcm.onTokenRefresh.listen((newToken) {
+      _fcm!.onTokenRefresh.listen((newToken) {
         _fcmToken = newToken;
         _saveFcmToken(newToken);
         debugPrint('[FCM] Token refreshed: $newToken');
@@ -73,15 +83,17 @@ class PushNotificationService {
       FirebaseMessaging.onMessageOpenedApp.listen(_handleNotificationTap);
 
       // Check if app was opened from a terminated state notification
-      final initialMessage = await _fcm.getInitialMessage();
+      final initialMessage = await _fcm!.getInitialMessage();
       if (initialMessage != null) {
         _handleNotificationTap(initialMessage);
       }
 
       _initialized = true;
       debugPrint('[FCM] Initialized successfully');
-    } catch (e) {
+    } catch (e, stackTrace) {
       debugPrint('[FCM] Initialization error: $e');
+      debugPrint('[FCM] Stack trace: $stackTrace');
+      _fcm = null; // Ensure FCM is null on error
     }
   }
 
@@ -120,7 +132,6 @@ class PushNotificationService {
   /// Show local notification (Android foreground)
   Future<void> _showLocalNotification(RemoteMessage message) async {
     final notification = message.notification;
-    final android = message.notification?.android;
 
     if (notification == null) return;
 
@@ -195,7 +206,9 @@ class PushNotificationService {
   /// Delete FCM token on logout
   Future<void> deleteToken() async {
     try {
-      await _fcm.deleteToken();
+      if (_fcm != null) {
+        await _fcm!.deleteToken();
+      }
       
       final userId = SupabaseConfig.auth.currentUser?.id;
       if (userId != null) {
@@ -212,17 +225,14 @@ class PushNotificationService {
     }
   }
 
-  /// Get VAPID key for web push (replace with your actual key from Firebase Console)
-  String? _getVapidKey() {
-    // TODO: Replace with your actual VAPID key from Firebase Console > Project Settings > Cloud Messaging > Web Push certificates
-    // For now, return null to use default behavior
-    return null;
-  }
-
   /// Subscribe to topic
   Future<void> subscribeToTopic(String topic) async {
+    if (_fcm == null) {
+      debugPrint('[FCM] Cannot subscribe to topic: FCM not initialized');
+      return;
+    }
     try {
-      await _fcm.subscribeToTopic(topic);
+      await _fcm!.subscribeToTopic(topic);
       debugPrint('[FCM] Subscribed to topic: $topic');
     } catch (e) {
       debugPrint('[FCM] Error subscribing to topic: $e');
@@ -231,8 +241,12 @@ class PushNotificationService {
 
   /// Unsubscribe from topic
   Future<void> unsubscribeFromTopic(String topic) async {
+    if (_fcm == null) {
+      debugPrint('[FCM] Cannot unsubscribe from topic: FCM not initialized');
+      return;
+    }
     try {
-      await _fcm.unsubscribeFromTopic(topic);
+      await _fcm!.unsubscribeFromTopic(topic);
       debugPrint('[FCM] Unsubscribed from topic: $topic');
     } catch (e) {
       debugPrint('[FCM] Error unsubscribing from topic: $e');

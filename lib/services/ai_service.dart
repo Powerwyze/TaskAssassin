@@ -7,7 +7,7 @@ import 'package:taskassassin/models/handler.dart';
 class AIService {
   // TODO: Add your Gemini API key here - Get it from https://aistudio.google.com/app/apikey
   // The previous API key was reported as leaked and has been removed for security
-  static const String _apiKey = 'AIzaSyC_OOtm57etsJjf3H26BML3vvdMhzqSHtc';
+  static const String _apiKey = 'AIzaSyDNNxbYCt8BxTRYdqK1Iqewd5UdC3OdnfQ';
   
   late final GenerativeModel _model;
   late final GenerativeModel _visionModel;

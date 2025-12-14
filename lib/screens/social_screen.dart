@@ -5,7 +5,6 @@ import 'package:taskassassin/providers/app_provider.dart';
 import 'package:taskassassin/models/user.dart';
 import 'package:taskassassin/models/friend.dart';
 import 'package:taskassassin/theme.dart';
-import 'package:taskassassin/screens/direct_message_screen.dart';
 
 class SocialScreen extends StatefulWidget {
   const SocialScreen({super.key});
