@@ -82,20 +82,16 @@ class SupabaseAuthManager extends AuthManager with EmailSignInManager, GoogleSig
       final response = await SupabaseConfig.auth.signUp(
         email: email,
         password: password,
+        emailRedirectTo: null, // Disable email confirmation redirect
       );
 
       if (response.user == null) {
         throw 'Sign up failed';
       }
 
-      // If email confirmation is required, Supabase returns no session.
-      // In that case, do NOT attempt profile creation (RLS will block it).
-      if (response.session == null) {
-        debugPrint('[SupabaseAuth] Created account, email confirmation required for: $email');
-        throw 'Email not confirmed. We sent a verification link to $email. Please verify, then sign in.';
-      }
-
-      debugPrint('[SupabaseAuth] Created account with email: $email');
+      debugPrint('[SupabaseAuth] Created account with email: $email (session: ${response.session != null})');
+      
+      // Create user profile immediately (works if email confirmation is disabled in Supabase)
       return await _getOrCreateUserProfile(response.user!);
     } catch (e) {
       debugPrint('[SupabaseAuth] Create account error: $e');

@@ -20,6 +20,7 @@ import 'package:taskassassin/screens/progress_screen.dart';
 import 'package:taskassassin/screens/leaderboard_screen.dart';
 import 'package:taskassassin/screens/direct_message_screen.dart';
 import 'package:taskassassin/services/push_notification_service.dart';
+import 'package:taskassassin/services/notification_navigation_helper.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -197,6 +198,37 @@ class _MyAppState extends State<MyApp> {
         ),
       ],
     );
+    
+    // Check for pending notification navigation after a delay
+    Future.delayed(const Duration(milliseconds: 500), _checkPendingNotificationNavigation);
+  }
+  
+  void _checkPendingNotificationNavigation() {
+    if (!mounted) return;
+    
+    final appProvider = Provider.of<AppProvider>(context, listen: false);
+    
+    // Only process if app is fully initialized and user is authenticated
+    if (!appProvider.isInitialized || 
+        !appProvider.isAuthenticated || 
+        !appProvider.profileResolved) {
+      return;
+    }
+    
+    if (NotificationNavigationHelper.hasPendingNavigation()) {
+      final navData = NotificationNavigationHelper.consumePendingNavigation();
+      final intent = NotificationNavigationHelper.getNavigationIntent(navData);
+      
+      if (intent != null && intent['route'] != null) {
+        debugPrint('[Router] Navigating from notification to: ${intent['route']}');
+        
+        if (intent['extra'] != null) {
+          _router.push(intent['route'], extra: intent['extra']);
+        } else {
+          _router.go(intent['route']);
+        }
+      }
+    }
   }
 
   @override

@@ -172,6 +172,10 @@ class AppProvider extends ChangeNotifier {
       _currentHandler = handlerService.getHandlerById(handlerId) ?? 
                         handlerService.getDefaultHandler();
       
+      debugPrint('[AppProvider] Onboarding complete, loading missions...');
+      // Load missions immediately after user creation to show welcome mission
+      await loadMissions();
+      
       notifyListeners();
     } catch (e) {
       debugPrint('[AppProvider] Onboarding error: $e');

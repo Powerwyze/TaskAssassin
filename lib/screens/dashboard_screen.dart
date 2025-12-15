@@ -7,7 +7,8 @@ import 'package:taskassassin/models/mission.dart';
 import 'package:taskassassin/theme.dart';
 import 'package:taskassassin/widgets/mission_card.dart';
 import 'package:taskassassin/models/user.dart' as model_user;
-import 'package:taskassassin/services/pwa_install_service.dart';
+import 'package:taskassassin/models/notification.dart';
+import 'package:taskassassin/services/notification_service.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -19,12 +20,6 @@ class DashboardScreen extends StatefulWidget {
 class _DashboardScreenState extends State<DashboardScreen> {
   static const List<String> _filters = ['ALL', 'EXECUTE', 'EXECUTED', 'FAILED', 'SCHEDULED'];
   int _selectedFilter = 0;
-
-  @override
-  void initState() {
-    super.initState();
-    initPwaInstallPrompt();
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -127,7 +122,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             onTap: () async {
                               final subject = Uri.encodeComponent('Check out TaskAssassin!');
                               final body = Uri.encodeComponent(
-                                'Hey! I\'ve been using TaskAssassin to track my goals and stay accountable. You should check it out: taskassassin.com'
+                                'Hey! I\'ve been using TaskAssassin to track my goals and stay accountable. You should check it out:\n\nhttps://shorturl.at/RoyBU'
                               );
                               final url = Uri.parse('mailto:?subject=$subject&body=$body');
                               if (await canLaunchUrl(url)) {
@@ -137,30 +132,45 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           ),
                           const SizedBox(height: 12),
                           _DownloadWebAppButton(
-                            onTap: () async {
-                              final messenger = ScaffoldMessenger.of(context);
-
-                              final blocker = getPwaInstallBlocker();
-                              if (blocker != null || !canShowPwaInstallPrompt()) {
-                                messenger.showSnackBar(
-                                  SnackBar(content: Text(blocker ?? 'Add to Home Screen is not available right now.')),
-                                );
-                                return;
-                              }
-
-                              final accepted = await showPwaInstallPrompt();
-                              messenger.showSnackBar(
-                                SnackBar(
-                                  content: Text(
-                                    accepted
-                                        ? 'Installation started—check your browser prompts.'
-                                        : 'Install dismissed.',
+                            onTap: () {
+                              showDialog(
+                                context: context,
+                                builder: (context) => AlertDialog(
+                                  title: const Text('Download to Home Screen'),
+                                  content: const Text(
+                                    'To download this app:\n\n'
+                                    '1. Tap your browser\'s settings menu (⋮ or ⋯)\n'
+                                    '2. Select "Add to Home Screen" or "Install App"\n'
+                                    '3. Follow the prompts to complete installation\n\n'
+                                    'The app will then be available on your home screen!',
                                   ),
+                                  actions: [
+                                    TextButton(
+                                      onPressed: () => Navigator.of(context).pop(),
+                                      child: const Text('GOT IT'),
+                                    ),
+                                  ],
                                 ),
                               );
                             },
                           ),
                           const SizedBox(height: 24),
+                          // Notifications Section
+                          StreamBuilder<List<AppNotification>>(
+                            stream: provider.notificationService.getNotificationsStream(),
+                            builder: (context, snapshot) {
+                              if (!snapshot.hasData) return const SizedBox.shrink();
+                              final notifications = snapshot.data!.where((n) => !n.isRead).take(3).toList();
+                              if (notifications.isEmpty) return const SizedBox.shrink();
+                              
+                              return Column(
+                                children: [
+                                  _NotificationsSection(notifications: notifications),
+                                  const SizedBox(height: 16),
+                                ],
+                              );
+                            },
+                          ),
                           // Stats Row - Level and Streak
                           Row(
                             children: [
@@ -893,6 +903,157 @@ class _InviteFriendButton extends StatelessWidget {
             Icon(Icons.share, color: Colors.white, size: 18),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _NotificationsSection extends StatelessWidget {
+  final List<AppNotification> notifications;
+
+  const _NotificationsSection({required this.notifications});
+
+  IconData _getIconForType(NotificationType type) {
+    switch (type) {
+      case NotificationType.friendRequest:
+        return Icons.person_add;
+      case NotificationType.friendAccepted:
+        return Icons.person_add_alt_1;
+      case NotificationType.missionAssigned:
+        return Icons.assignment;
+      case NotificationType.missionCompleted:
+        return Icons.check_circle;
+      case NotificationType.achievementUnlocked:
+        return Icons.emoji_events;
+      case NotificationType.message:
+        return Icons.message;
+      case NotificationType.system:
+        return Icons.info;
+    }
+  }
+
+  Color _getColorForType(NotificationType type) {
+    switch (type) {
+      case NotificationType.friendRequest:
+      case NotificationType.friendAccepted:
+        return CyberpunkColors.neonPurple;
+      case NotificationType.missionAssigned:
+      case NotificationType.missionCompleted:
+        return CyberpunkColors.neonTeal;
+      case NotificationType.achievementUnlocked:
+        return CyberpunkColors.neonOrange;
+      case NotificationType.message:
+        return CyberpunkColors.neonMagenta;
+      case NotificationType.system:
+        return CyberpunkColors.textMuted;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: AppSpacing.paddingMd,
+      decoration: BoxDecoration(
+        color: CyberpunkColors.surfaceVariant,
+        borderRadius: BorderRadius.circular(AppRadius.md),
+        border: Border.all(color: CyberpunkColors.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  Icon(Icons.notifications_active, size: 16, color: CyberpunkColors.neonTeal),
+                  const SizedBox(width: 8),
+                  Text('NOTIFICATIONS', style: context.textStyles.labelMedium),
+                ],
+              ),
+              GestureDetector(
+                onTap: () => context.push('/notifications'),
+                child: Row(
+                  children: [
+                    Text(
+                      'VIEW ALL',
+                      style: context.textStyles.labelSmall!.copyWith(
+                        color: CyberpunkColors.neonTeal,
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    Icon(Icons.arrow_forward, size: 12, color: CyberpunkColors.neonTeal),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          ...notifications.map((notification) {
+            final color = _getColorForType(notification.type);
+            final icon = _getIconForType(notification.type);
+            
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: GestureDetector(
+                onTap: () => context.push('/notifications'),
+                child: Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: CyberpunkColors.background,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: color.withValues(alpha: 0.3)),
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: color.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Icon(icon, color: color, size: 18),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              notification.title,
+                              style: context.textStyles.labelMedium!.copyWith(
+                                color: CyberpunkColors.textPrimary,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              notification.message,
+                              style: context.textStyles.bodySmall!.copyWith(
+                                color: CyberpunkColors.textSecondary,
+                              ),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
+                        ),
+                      ),
+                      Container(
+                        width: 8,
+                        height: 8,
+                        decoration: BoxDecoration(
+                          color: color,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          }).toList(),
+        ],
       ),
     );
   }

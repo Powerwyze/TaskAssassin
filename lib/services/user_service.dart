@@ -46,6 +46,7 @@ class UserService {
       if (res.isNotEmpty) {
         final saved = User.fromJson(res.first);
         debugPrint('[UserService] Upserted user during onboarding: ${saved.id}');
+        debugPrint('[UserService] Creating welcome mission for new user...');
         
         // Create welcome mission for new user
         await _createWelcomeMissionForUser(saved.id);
@@ -58,6 +59,7 @@ class UserService {
       if (fetched != null) {
         final saved = User.fromJson(fetched);
         debugPrint('[UserService] Fetched user post-upsert during onboarding: ${saved.id}');
+        debugPrint('[UserService] Creating welcome mission for fetched user...');
         
         // Create welcome mission for new user
         await _createWelcomeMissionForUser(saved.id);

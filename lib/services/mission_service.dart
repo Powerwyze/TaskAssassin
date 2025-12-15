@@ -267,6 +267,7 @@ class MissionService {
   /// This mission is assigned by the admin account (spc.bstewart@gmail.com).
   Future<Mission?> createWelcomeMission(String newUserId) async {
     try {
+      debugPrint('[MissionService] Looking up admin user with email: $adminEmail');
       // Look up the admin user by email
       final adminData = await SupabaseConfig.client
           .from('users')
@@ -275,6 +276,7 @@ class MissionService {
           .maybeSingle();
       
       final String? adminUserId = adminData?['id'];
+      debugPrint('[MissionService] Admin user ID: $adminUserId');
       
       final welcomeMission = await createMission(
         userId: newUserId,

@@ -20,6 +20,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   bool _uploadingAvatar = false;
   bool _creatingWelcomeMission = false;
   final _picker = ImagePicker();
+  final _codenameController = TextEditingController();
 
   Future<void> _changeAvatar() async {
     final source = await showModalBottomSheet<ImageSource>(
@@ -96,6 +97,74 @@ class _ProfileScreenState extends State<ProfileScreen> {
     } finally {
       if (mounted) setState(() => _creatingWelcomeMission = false);
     }
+  }
+
+  Future<void> _updateCodename() async {
+    final provider = context.read<AppProvider>();
+    final user = provider.currentUser;
+    if (user == null) return;
+
+    _codenameController.text = user.codename;
+
+    final newCodename = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Update Codename'),
+        content: TextField(
+          controller: _codenameController,
+          decoration: const InputDecoration(
+            labelText: 'Codename',
+            hintText: 'Enter your new codename',
+          ),
+          maxLength: 30,
+          autofocus: true,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () {
+              final value = _codenameController.text.trim();
+              if (value.isEmpty) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Codename cannot be empty')),
+                );
+                return;
+              }
+              Navigator.pop(ctx, value);
+            },
+            child: const Text('Update'),
+          ),
+        ],
+      ),
+    );
+
+    if (newCodename == null || newCodename == user.codename) return;
+
+    try {
+      await provider.userService.updateUser(user.copyWith(codename: newCodename));
+      await provider.refreshUser();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Codename updated successfully!')),
+        );
+      }
+    } catch (e) {
+      debugPrint('Codename update error: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to update codename: $e')),
+        );
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _codenameController.dispose();
+    super.dispose();
   }
 
   @override
@@ -215,7 +284,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         ],
                       ),
                       const SizedBox(height: 16),
-                      Text(user.codename, style: context.textStyles.headlineMedium!.bold),
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(user.codename, style: context.textStyles.headlineMedium!.bold),
+                          const SizedBox(width: 8),
+                          IconButton(
+                            icon: const Icon(Icons.edit, size: 20),
+                            onPressed: _updateCodename,
+                            tooltip: 'Update codename',
+                            padding: const EdgeInsets.all(4),
+                          ),
+                        ],
+                      ),
                       const SizedBox(height: 4),
                       Text(
                         'Level ${user.level} Agent',

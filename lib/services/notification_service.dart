@@ -18,7 +18,17 @@ class NotificationService {
         .eq('user_id', userId)
         .order('created_at', ascending: false)
         .limit(50)
-        .map((data) => data.map((json) => AppNotification.fromJson(json)).toList());
+        .map((data) {
+          final notifications = data.map((json) => AppNotification.fromJson(json)).toList();
+          // Sort unread notifications to the top
+          notifications.sort((a, b) {
+            if (a.isRead == b.isRead) {
+              return b.createdAt.compareTo(a.createdAt); // newer first
+            }
+            return a.isRead ? 1 : -1; // unread first
+          });
+          return notifications;
+        });
   }
 
   Future<List<AppNotification>> getNotifications({int limit = 50}) async {

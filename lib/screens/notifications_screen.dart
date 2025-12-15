@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
@@ -119,7 +120,27 @@ class NotificationsScreen extends StatelessWidget {
                   await _handleNotificationTap(context, provider, notification);
                 },
                 onDismiss: () async {
-                  await provider.notificationService.deleteNotification(notification.id);
+                  try {
+                    await provider.notificationService.deleteNotification(notification.id);
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Notification deleted'),
+                          duration: Duration(seconds: 2),
+                        ),
+                      );
+                    }
+                  } catch (e) {
+                    debugPrint('[NotificationsScreen] Error deleting notification: $e');
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Failed to delete notification'),
+                          backgroundColor: Colors.red,
+                        ),
+                      );
+                    }
+                  }
                 },
               );
             },

@@ -3,6 +3,7 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:taskassassin/supabase/supabase_config.dart';
+import 'package:taskassassin/services/notification_navigation_helper.dart';
 
 /// Background message handler (must be top-level)
 @pragma('vm:entry-point')
@@ -169,17 +170,16 @@ class PushNotificationService {
     debugPrint('[FCM] Notification tapped: ${message.messageId}');
     debugPrint('[FCM] Data: ${message.data}');
     
-    // TODO: Navigate based on notification type/data
-    // Example: if (message.data['type'] == 'mission') { navigate to mission }
+    NotificationNavigationHelper.handleNotificationNavigation(message.data);
   }
 
   /// Handle local notification tap
   void _onNotificationTapped(NotificationResponse response) {
     if (response.payload != null) {
       try {
-        final data = jsonDecode(response.payload!);
+        final data = jsonDecode(response.payload!) as Map<String, dynamic>;
         debugPrint('[FCM] Local notification tapped, data: $data');
-        // TODO: Navigate based on data
+        NotificationNavigationHelper.handleNotificationNavigation(data);
       } catch (e) {
         debugPrint('[FCM] Error parsing notification payload: $e');
       }

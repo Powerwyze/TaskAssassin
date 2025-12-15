@@ -13,7 +13,7 @@ class _AuthScreenState extends State<AuthScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _authManager = SupabaseAuthManager();
-  bool _isSignUp = false;
+  bool _isSignUp = true;
   bool _isLoading = false;
 
   @override
@@ -50,14 +50,9 @@ class _AuthScreenState extends State<AuthScreen> {
       // Navigation is handled centrally by main.dart once the profile is resolved.
     } catch (e) {
       if (mounted) {
-        final err = e.toString();
-        String msg;
-        if (err.toLowerCase().contains('email not confirmed') || err.contains('email_not_confirmed')) {
-          msg = 'Check your inbox to verify your email, then sign in.';
-        } else {
-          msg = 'Authentication error: $err';
-        }
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Authentication error: ${e.toString()}')),
+        );
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -161,7 +156,7 @@ class _AuthScreenState extends State<AuthScreen> {
                       onPressed: _handleEmailAuth,
                       style: FilledButton.styleFrom(
                         minimumSize: const Size(double.infinity, 50),
-                        backgroundColor: AppColors.checkGreen,
+                        backgroundColor: _isSignUp ? AppColors.checkGreen : AppColors.steelBlue,
                         foregroundColor: Colors.white,
                       ),
                       child: Text(_isSignUp ? 'SIGN UP' : 'SIGN IN'),
@@ -170,7 +165,7 @@ class _AuthScreenState extends State<AuthScreen> {
                     OutlinedButton.icon(
                       onPressed: _handleGoogleSignIn,
                       icon: Icon(Icons.login, color: AppColors.steelBlue),
-                      label: const Text('Sign in with Google'),
+                      label: const Text('Sign up with Google'),
                       style: OutlinedButton.styleFrom(
                         minimumSize: const Size(double.infinity, 50),
                         foregroundColor: AppColors.cream,
