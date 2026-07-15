@@ -15,7 +15,7 @@ class SupabaseConfig {
   static const String anonKey = String.fromEnvironment(
     'SUPABASE_ANON_KEY',
     defaultValue:
-        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJnaWJ3pzeGpyb213ZWZ1b3B2emZnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQ5Mzc2MjAsImV4cCI6MjA4MDUxMzYyMH0._a6YlAfRXO01skwzar0A8km80OM27RRuzJKL__f8kqg',
+        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imdid3pzeGpyb213ZWZ1b3B2emZnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQ5Mzc2MjAsImV4cCI6MjA4MDUxMzYyMH0._a6YlAfRXO01skwzar0A8km80OM27RRuzJKL__f8kqg',
   );
 
   static Future<void> initialize() async {
