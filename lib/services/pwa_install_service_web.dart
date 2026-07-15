@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:html' as html;
-import 'dart:js_util' as js_util;
+
+import 'package:js/js_util.dart' as js_util;
 
 dynamic _deferredPrompt;
 StreamSubscription<html.Event>? _listener;
