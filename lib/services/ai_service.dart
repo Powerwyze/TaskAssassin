@@ -51,10 +51,16 @@ class AIService {
     return parsed;
   }
 
+  int _clampStars(int value) {
+    if (value < 1) return 1;
+    if (value > 5) return 5;
+    return value;
+  }
+
   int _coerceStars(dynamic value) {
-    if (value is int) return value.clamp(1, 5);
-    if (value is double) return value.round().clamp(1, 5);
-    if (value is String) return (int.tryParse(value) ?? 3).clamp(1, 5);
+    if (value is int) return _clampStars(value);
+    if (value is double) return _clampStars(value.round());
+    if (value is String) return _clampStars(int.tryParse(value) ?? 3);
     return 3;
   }
 
