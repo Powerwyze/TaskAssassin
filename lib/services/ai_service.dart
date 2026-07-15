@@ -44,8 +44,9 @@ class AIService {
     }
 
     if (parsed['error'] != null) {
+      final error = parsed['error'].toString();
       final details = parsed['details'];
-      throw Exception(details == null ? parsed['error'].toString() : '${parsed['error']}: $details');
+      throw Exception(details == null ? error : '$error: $details');
     }
 
     return parsed;
