@@ -10,6 +10,11 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   debugPrint('[FCM Background] Received: ${message.messageId}');
 }
 
+const bool _pushNotificationsEnabled = bool.fromEnvironment(
+  'ENABLE_PUSH',
+  defaultValue: false,
+);
+
 class PushNotificationService {
   static final PushNotificationService _instance = PushNotificationService._internal();
   factory PushNotificationService() => _instance;
@@ -26,6 +31,12 @@ class PushNotificationService {
   /// Initialize push notifications
   Future<void> initialize() async {
     if (_initialized) return;
+
+    if (!_pushNotificationsEnabled) {
+      debugPrint('[FCM] Skipping initialization. Configure Firebase and build with --dart-define=ENABLE_PUSH=true to enable push notifications.');
+      _initialized = true;
+      return;
+    }
 
     // Disable FCM on web entirely (not supported in this environment)
     if (kIsWeb) {
@@ -136,9 +147,9 @@ class PushNotificationService {
     if (notification == null) return;
 
     const androidDetails = AndroidNotificationDetails(
-      'taskassassin_default',
-      'TaskAssassin Notifications',
-      channelDescription: 'General notifications for TaskAssassin',
+      'questime_default',
+      'Questime Notifications',
+      channelDescription: 'General notifications for Questime',
       importance: Importance.high,
       priority: Priority.high,
       showWhen: true,
