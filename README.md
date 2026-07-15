@@ -34,6 +34,8 @@ flutter test
 flutter build web --release
 ```
 
+The same checks run in GitHub Actions through `.github/workflows/flutter-ci.yml`.
+
 ## Security Notes
 
 Revoke any Gemini key that was previously committed to repository history. Before production, add Supabase migrations for RLS and Storage policies so the backend security model is versioned with the app.
