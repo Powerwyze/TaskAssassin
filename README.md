@@ -54,7 +54,7 @@ flutter build appbundle --release
 flutter build ios --release --no-codesign
 ```
 
-GitHub Actions runs the supported CI subset for pull requests.
+GitHub Actions now verifies web, Android app bundle, and iOS no-codesign builds for pull requests.
 
 ## Security Notes
 
