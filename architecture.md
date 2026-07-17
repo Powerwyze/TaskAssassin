@@ -17,7 +17,7 @@ OpenAI API calls must stay server-side. The Flutter client invokes the Supabase 
 
 Required Edge Function secrets:
 - `OPENAI_API_KEY`
-- `OPENAI_MODEL`, default `gpt-5.5`
+- `OPENAI_MODEL`, default `gpt-5.6-luna`
 - `ALLOWED_ORIGIN` for web CORS, or `*` during development
 - `MAX_REQUEST_BYTES`, optional, default `12000`
 - `MAX_IMAGE_BYTES`, optional, default `5242880`
