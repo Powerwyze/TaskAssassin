@@ -1,11 +1,11 @@
 {
-    "name": "TaskAssassin",
-    "short_name": "TaskAssassin",
+    "name": "Questime",
+    "short_name": "Questime",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#1E3A5F",
     "theme_color": "#1E3A5F",
-    "description": "TaskAssassin - Gamified Productivity",
+    "description": "Questime - Turn time into quests with AI verification and social accountability",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

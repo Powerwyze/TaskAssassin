@@ -1,11 +1,22 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter/foundation.dart';
 
-/// Generic Supabase configuration template
-/// Replace YOUR_ and YOUR_ with your actual values
+/// Supabase configuration for Questime.
+///
+/// Release builds can override these values without editing source:
+/// --dart-define=SUPABASE_URL=...
+/// --dart-define=SUPABASE_ANON_KEY=...
 class SupabaseConfig {
-  static const String supabaseUrl = 'https://gbwzsxjromwefuopvzfg.supabase.co';
-  static const String anonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imdid3pzeGpyb213ZWZ1b3B2emZnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQ5Mzc2MjAsImV4cCI6MjA4MDUxMzYyMH0._a6YlAfRXO01skwzar0A8km80OM27RRuzJKL__f8kqg';
+  static const String supabaseUrl = String.fromEnvironment(
+    'SUPABASE_URL',
+    defaultValue: 'https://gbwzsxjromwefuopvzfg.supabase.co',
+  );
+
+  static const String anonKey = String.fromEnvironment(
+    'SUPABASE_ANON_KEY',
+    defaultValue:
+        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imdid3pzeGpyb213ZWZ1b3B2emZnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQ5Mzc2MjAsImV4cCI6MjA4MDUxMzYyMH0._a6YlAfRXO01skwzar0A8km80OM27RRuzJKL__f8kqg',
+  );
 
   static Future<void> initialize() async {
     await Supabase.initialize(

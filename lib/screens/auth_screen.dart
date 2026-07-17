@@ -91,7 +91,7 @@ class _AuthScreenState extends State<AuthScreen> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              // TaskAssassin Logo
+              // Questime logo
               ClipRRect(
                 borderRadius: BorderRadius.circular(20),
                 child: Image.asset(
@@ -108,14 +108,14 @@ class _AuthScreenState extends State<AuthScreen> {
                 text: TextSpan(
                   children: [
                     TextSpan(
-                      text: 'TASK',
+                      text: 'QUES',
                       style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                         fontWeight: FontWeight.bold,
                         color: AppColors.cream,
                       ),
                     ),
                     TextSpan(
-                      text: 'ASSASSIN',
+                      text: 'TIME',
                       style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                         fontWeight: FontWeight.bold,
                         color: AppColors.checkGreen,
@@ -126,7 +126,7 @@ class _AuthScreenState extends State<AuthScreen> {
               ),
               const SizedBox(height: 8),
               Text(
-                'Execute Your Goals',
+                'Turn Time Into Quests',
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                   color: AppColors.textSecondary,
                 ),
@@ -185,7 +185,7 @@ class _AuthScreenState extends State<AuthScreen> {
                     ),
                     const SizedBox(height: 24),
                     Text(
-                      'v1.0.3',
+                      'v1.0.1',
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
                         color: AppColors.textMuted,
                       ),
