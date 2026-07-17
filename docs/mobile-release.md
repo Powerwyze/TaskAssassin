@@ -35,7 +35,7 @@ supabase login
 supabase link --project-ref gbwzsxjromwefuopvzfg
 supabase secrets set \
   OPENAI_API_KEY=... \
-  OPENAI_MODEL=gpt-5.5 \
+  OPENAI_MODEL=gpt-5.6-luna \
   ALLOWED_ORIGIN=* \
   MAX_REQUEST_BYTES=12000 \
   MAX_IMAGE_BYTES=5242880 \
@@ -88,6 +88,7 @@ The checked-in Gradle config falls back to debug signing only so CI can compile 
 
 GitHub Actions should verify:
 
+- `deno check supabase/functions/chatgpt-chat/index.ts`
 - `flutter pub get`
 - `flutter analyze --no-fatal-infos`
 - `flutter test`
