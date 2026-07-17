@@ -23,7 +23,7 @@ class HttpError extends Error {
 }
 
 const OPENAI_RESPONSES_URL = "https://api.openai.com/v1/responses"
-const OPENAI_MODEL = Deno.env.get("OPENAI_MODEL")?.trim() || "gpt-5.5"
+const OPENAI_MODEL = Deno.env.get("OPENAI_MODEL")?.trim() || "gpt-5.6-luna"
 const MAX_REQUEST_BYTES = envNumber("MAX_REQUEST_BYTES", 12000, 1000, 100000)
 const MAX_IMAGE_BYTES = envNumber("MAX_IMAGE_BYTES", 5242880, 1000, 20000000)
 const MAX_OUTPUT_TOKENS = envNumber("MAX_OUTPUT_TOKENS", 900, 128, 4000)
