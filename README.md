@@ -36,7 +36,7 @@ Deploy the ChatGPT-backed Edge Function with the Supabase CLI after linking the 
 
 ```sh
 supabase link --project-ref gbwzsxjromwefuopvzfg
-supabase secrets set OPENAI_API_KEY=... OPENAI_MODEL=gpt-5.5 ALLOWED_ORIGIN=*
+supabase secrets set OPENAI_API_KEY=... OPENAI_MODEL=gpt-5.6-luna ALLOWED_ORIGIN=*
 supabase functions deploy chatgpt-chat
 ```
 
@@ -48,7 +48,7 @@ Configure these in Supabase Edge Function secrets:
 
 ```text
 OPENAI_API_KEY=
-OPENAI_MODEL=gpt-5.5
+OPENAI_MODEL=gpt-5.6-luna
 ALLOWED_ORIGIN=*
 MAX_REQUEST_BYTES=12000
 MAX_IMAGE_BYTES=5242880
@@ -67,7 +67,7 @@ flutter build appbundle --release
 flutter build ios --release --no-codesign
 ```
 
-GitHub Actions verifies web, Android app bundle, and iOS no-codesign builds for pull requests.
+GitHub Actions verifies web, Android app bundle, iOS no-codesign, and Supabase Edge Function checks for pull requests.
 
 ## Security Notes
 
