@@ -71,4 +71,4 @@ GitHub Actions verifies web, Android app bundle, and iOS no-codesign builds for 
 
 ## Security Notes
 
-Revoke any Gemini key that was previously committed to repository history. Before production, add Supabase migrations for RLS and Storage policies so the backend security model is versioned with the app.
+Revoke any old AI provider key that was previously committed to repository history. Before production, add Supabase migrations for RLS and Storage policies so the backend security model is versioned with the app.
